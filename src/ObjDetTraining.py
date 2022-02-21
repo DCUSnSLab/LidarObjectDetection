@@ -128,6 +128,7 @@ class ExMain(QWidget):
 
         #obj detection
 
+
         # 그래프의 좌표 출력을 위해 pos 데이터에 최종 points 저장
         self.pos = points
 
