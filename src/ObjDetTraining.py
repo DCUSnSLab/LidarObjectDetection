@@ -12,9 +12,8 @@ import time, random
 from threading import Thread
 import numpy as np
 
-# pcl 라이브러리 import 문제
-# import pcl
-# import pcl_helper # https://gist.github.com/adioshun/f35919c895631314394aa1762c24334c
+import pcl
+import pcl_helper # https://gist.github.com/adioshun/f35919c895631314394aa1762c24334c
 
 class ExMain(QWidget):
     def __init__(self):
@@ -129,38 +128,26 @@ class ExMain(QWidget):
 
     #여기부터 object detection 알고리즘 적용해 보면 됨
     def doYourAlgorithm(self, points):
-        #downsampling
-        # pointcloud random downsampling
-        idx = np.random.randint(len(points), size=7000)
+        # downsampling
+        # <pointcloud random downsampling>
+        idx = np.random.randint(len(points), size=10000)
         points = points[idx, :]
 
-        # voxel grid downsampling
+        # <voxel grid downsampling>
         # vox = points.make_voxel_grid_filter()
         # vox.set_leaf_size(0.01, 0.01, 0.01)
         # points = vox.filter()
         # print(points)
 
         #filter
-        # points = pcl_helper.ros_to_pcl(points) # pcl_helper import 안됨
-        # passthrough = points.make_passthrough_filter()
-        # x축 영역 설정 부분
-        # passthrough.set_filter_field_name('x')
-        # passthrough.set_filter_limits(1.0, 20.0) # min, max 값 수정 필요
-        # points = passthrough.filter()
-        # points = pcl_helper.pcl_to_tos(points)
+        range = {"x":[-30, 30], "y":[-10, 25], "z":[-1.5, 5.0]} # z값 수
 
+        x_range = np.logical_and(points[:, 0] >= range["x"][0], points[:, 0] <= range["x"][1])
+        y_range = np.logical_and(points[:, 1] >= range["y"][0], points[:, 1] <= range["y"][1])
+        z_range = np.logical_and(points[:, 2] >= range["z"][0], points[:, 2] <= range["z"][1])
 
-        # dic = {"x":[-10, 25],
-        #        "y":[-30, 30],
-        #        "z":[0.0, 10.0]}
-        #
-        # x_range = np.logical_and(points[:, 0] >= dic["x"][0], points[:, 0] <= dic["x"][1])
-        # y_range = np.logical_and(points[:, 1] >= dic["y"][0], points[:, 1] <= dic["y"][1])
-        # z_range = np.logical_and(points[:, 2] >= dic["z"][0], points[:, 2] <= dic["z"][1])
-        #
-        # pass_through_filter = np.logical_and(x_range, np.logical_and(y_range, z_range))
-        # print(pass_through_filter)
-        # open3d.utility.Vector3dVector(pass_through_filter)
+        pass_through_filter = np.where(np.logical_and(x_range, np.logical_and(y_range, z_range))==True)[0]
+        points = points[pass_through_filter, :]
 
         #obj detection
 
