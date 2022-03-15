@@ -12,8 +12,16 @@ import time, random
 from threading import Thread
 import numpy as np
 
+import matplotlib.pyplot as plt
+from sklearn.datasets import make_blobs
+from sklearn.cluster import KMeans
+from sklearn.neighbors import KDTree
+from sklearn.linear_model import RANSACRegressor
+import pandas as pd
+import seaborn
+
 import pcl
-import pcl_helper # https://gist.github.com/adioshun/f35919c895631314394aa1762c24334c
+# import pcl_helper # https://gist.github.com/adioshun/f35919c895631314394aa1762c24334c
 
 class ExMain(QWidget):
     def __init__(self):
@@ -68,7 +76,6 @@ class ExMain(QWidget):
         test_bagfile = '/home/hyewon/development/dataset/UrbanRoad/2022-02-10-19-54-31.bag'
         self.bag_file = rosbag.Bag(test_bagfile)
 
-
         #ros thread
         self.bagthreadFlag = True
         self.bagthread = Thread(target=self.getbagfile)
@@ -111,14 +118,14 @@ class ExMain(QWidget):
 
             #get point cloud
             pc = ros_numpy.numpify(msg)
-            points = np.zeros((pc.shape[0], 4)) #point배열 초기화 1번 컬럼부터 x, y, z, intensity 저장 예정
+            points = np.zeros((pc.shape[0], 3)) #point배열 초기화 1번 컬럼부터 x, y, z, intensity 저장 예정
 
             # for ROS and vehicle, x axis is long direction, y axis is lat direction
             # ros 데이터는 x축이 정북 방향, y축이 서쪽 방향임, 좌표계 오른손 법칙을 따름
             points[:, 0] = pc['x']
             points[:, 1] = pc['y']
             points[:, 2] = pc['z']
-            points[:, 3] = pc['intensity']
+            # points[:, 3] = pc['intensity']
 
             self.resetObjPos()
             self.doYourAlgorithm(points)
@@ -131,7 +138,7 @@ class ExMain(QWidget):
         # downsampling
         # <pointcloud random downsampling>
         idx = np.random.randint(len(points), size=10000)
-        points = points[idx, :]
+        #points = points[idx, :]
 
         # <voxel grid downsampling>
         # vox = points.make_voxel_grid_filter()
@@ -140,7 +147,7 @@ class ExMain(QWidget):
         # print(points)
 
         #filter
-        range = {"x":[-30, 30], "y":[-10, 25], "z":[-1.5, 5.0]} # z값 수
+        range = {"x":[-30, 30], "y":[-10, 20], "z":[-1.5, 5.0]} # z값 수정
 
         x_range = np.logical_and(points[:, 0] >= range["x"][0], points[:, 0] <= range["x"][1])
         y_range = np.logical_and(points[:, 1] >= range["y"][0], points[:, 1] <= range["y"][1])
@@ -148,6 +155,18 @@ class ExMain(QWidget):
 
         pass_through_filter = np.where(np.logical_and(x_range, np.logical_and(y_range, z_range))==True)[0]
         points = points[pass_through_filter, :]
+
+        #clustering
+        kmeans = KMeans(n_clusters=15, init='k-means++')
+        kmeans.fit(points)
+        print('kmeans(', len(kmeans.labels_), ') : ', kmeans.labels_)
+        # seaborn.scatterplot(data=points, palette="Set2")
+
+        kdt = KDTree(points)
+        #dist, ind = kdt.query(points[:1], k=10)
+        #print('dist : ', dist, '\nind : ', ind)
+        #print('count : ', kdt.query_radius(points[:1], r=0.3, count_only=True))
+        #print(kdt.query_radius(points[:1], r=0.3))
 
         #obj detection
 
