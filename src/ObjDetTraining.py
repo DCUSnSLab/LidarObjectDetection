@@ -102,7 +102,8 @@ class ExMain(QWidget):
                 obj.setVisible(False)
             else:
                 obj.setVisible(True)
-                obj.setRect((objpos[0])-(objsize[0]/2), (objpos[1])-(objsize[1]/2), objsize[0], objsize[1])
+                # obj.setRect((objpos[0])-(objsize[0]/2), (objpos[1])-(objsize[1]/2), objsize[0], objsize[1])
+                obj.setRect((objpos[0]), (objpos[1]), objsize[0], objsize[1])
         #time.sleep(1)
         #print('test')
 
@@ -161,10 +162,13 @@ class ExMain(QWidget):
         # voxel_grid = open3d.geometry.VoxelGrid.create_from_point_cloud(points, voxel_size=0.1)
         # open3d.visualization.draw_geometries([voxel_grid])
 
-        #clustering
-        cluster = 3
-        kmeans = KMeans(n_clusters=cluster, init='k-means++').fit(points)
-        print('kmeans(', len(kmeans.labels_), ') : ', kmeans.labels_)
+        # Clustering
+        # k_start = time.time()
+        # cluster = 10
+        # kmeans = KMeans(n_clusters=cluster, init='k-means++').fit(points)
+        # print('kmeans(', len(kmeans.labels_), ') : ', kmeans.labels_)
+        # k_end = time.time()
+        # print(k_end - k_start, 'sec')
 
         # kdt = KDTree(points, leaf_size=500)
         # dist, ind = kdt.query(points[:1], k=10)
@@ -186,17 +190,13 @@ class ExMain(QWidget):
 
             # pos : 중심좌표로 생각하고 수정해야함 (현재 왼쪽 아래)
             index = np.asarray(np.where(kmeans.labels_ == i))
-            tempobjPos[0] = np.min(points[index, 0])
-            tempobjPos[1] = np.min(points[index, 1])
-            tempobjSize[0] = abs(np.max(points[index, 0]))
-            tempobjSize[1] = abs(np.max(points[index, 1]))
-            print(i, 'cluster min : ', tempobjPos[0], tempobjPos[1])
-            print(i, 'cluster max : ', tempobjSize[0], tempobjSize[1])
-
-            # tempobjPos[0] = x_min  # 1
-            # tempobjPos[1] = y_min  # 3
-            # tempobjSize[0] = x_max  # 3
-            # tempobjSize[1] = y_max  # 1.3
+            print(i, 'cluster 개수 : ', len(index[0]))
+            tempobjPos[0] = np.min(points[index, 0]) # x_min 1
+            tempobjPos[1] = np.min(points[index, 1]) # y_min 3
+            tempobjSize[0] = abs(np.max(points[index, 0])) # x_max 3
+            tempobjSize[1] = abs(np.max(points[index, 1])) # y_max 1.3
+            # print(i, 'cluster min : ', tempobjPos[0], tempobjPos[1])
+            # print(i, 'cluster max : ', tempobjSize[0], tempobjSize[1])
 
         time.sleep(3)
 
