@@ -14,6 +14,7 @@ import numpy as np
 
 from sklearn.cluster import KMeans
 from sklearn.neighbors import KDTree
+from sklearn.cluster import DBSCAN
 
 import pcl
 from sklearn.linear_model import RANSACRegressor
@@ -102,8 +103,8 @@ class ExMain(QWidget):
                 obj.setVisible(False)
             else:
                 obj.setVisible(True)
-                # obj.setRect((objpos[0])-(objsize[0]/2), (objpos[1])-(objsize[1]/2), objsize[0], objsize[1])
-                obj.setRect((objpos[0]), (objpos[1]), objsize[0], objsize[1])
+                obj.setRect((objpos[0])-(objsize[0]/2), (objpos[1])-(objsize[1]/2), objsize[0], objsize[1])
+                # obj.setRect((objpos[0]), (objpos[1]), objsize[0], objsize[1])
         #time.sleep(1)
         #print('test')
 
@@ -176,6 +177,9 @@ class ExMain(QWidget):
         # print('count : ', kdt.query_radius(points[:1], r=0.3, count_only=True))
         # print(kdt.query_radius(points[:1], r=0.3))
 
+        dbscan = DBSCAN(eps=1, min_samples=50).fit(points)
+        print('DBSCAN(', len(dbscan.labels_), ') : ', dbscan.labels_)
+
         #obj detection
 
         # 그래프의 좌표 출력을 위해 pos 데이터에 최종 points 저장
@@ -183,31 +187,37 @@ class ExMain(QWidget):
         # print(self.pos)
         # print(self.pos[0])
 
-        for i in range(cluster):
+        # for i in range(cluster): # kmeans
+        for i in range(max(dbscan.labels_)): # dbscan
             # 테스트용 obj 생성, 임시로 0번째 obj에 x,y 좌표와 사이즈 입력
             tempobjPos = self.objsPos[i]
             tempobjSize = self.objsSize[i]
 
             # pos : 중심좌표로 생각하고 수정해야함 (현재 왼쪽 아래)
-            index = np.asarray(np.where(kmeans.labels_ == i))
+            index = np.asarray(np.where(dbscan.labels_ == i))
+            # index = np.asarray(np.where(kmeans.labels_ == i))
             print(i, 'cluster 개수 : ', len(index[0]))
-            tempobjPos[0] = np.min(points[index, 0]) # x_min 1
-            tempobjPos[1] = np.min(points[index, 1]) # y_min 3
-            tempobjSize[0] = abs(np.max(points[index, 0])) # x_max 3
-            tempobjSize[1] = abs(np.max(points[index, 1])) # y_max 1.3
+            tempobjPos[0] = (np.max(points[index, 0]) + np.min(points[index, 0]))/2  # x_min 1
+            tempobjPos[1] = (np.max(points[index, 1]) + np.min(points[index, 1]))/2 # y_min 3
+            tempobjSize[0] = np.max(points[index, 0]) - np.min(points[index, 0]) # x_max 3
+            tempobjSize[1] = np.max(points[index, 1]) - np.min(points[index, 1]) # y_max 1.3
             # print(i, 'cluster min : ', tempobjPos[0], tempobjPos[1])
             # print(i, 'cluster max : ', tempobjSize[0], tempobjSize[1])
-
-        time.sleep(3)
 
         # 테스트용 obj 생성, 임시로 0번째 obj에 x,y 좌표와 사이즈 입력
         # tempobjPos = self.objsPos[0]
         # tempobjSize = self.objsSize[0]
         #
-        # tempobjPos[0] = 1
-        # tempobjPos[1] = 3
-        # tempobjSize[0] = 3
-        # tempobjSize[1] = 1.3
+        # index = np.asarray(np.where(dbscan.labels_ == 1))
+        #
+        # tempobjPos[0] = (np.max(points[index, 0]) + np.min(points[index, 0])) / 2
+        # tempobjPos[1] = (np.max(points[index, 1]) + np.min(points[index, 1])) / 2
+        # tempobjSize[0] = np.max(points[index, 0]) - np.min(points[index, 0])
+        # tempobjSize[1] = np.max(points[index, 1]) - np.min(points[index, 1])
+        # print(points[:, 0])
+        # print('x_min : ', np.min(points[index, 0]), 'y_min : ', np.min(points[index, 1]))
+        # print('x_max : ', np.max(points[index, 0]), 'y_max : ', np.max(points[index, 1]))
+        # print(tempobjPos[0], tempobjSize[0])
 
     def resetObjPos(self):
         for i, pos in enumerate(self.objsPos):
