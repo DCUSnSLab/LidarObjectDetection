@@ -104,7 +104,6 @@ class ExMain(QWidget):
             else:
                 obj.setVisible(True)
                 obj.setRect((objpos[0])-(objsize[0]/2), (objpos[1])-(objsize[1]/2), objsize[0], objsize[1])
-                # obj.setRect((objpos[0]), (objpos[1]), objsize[0], objsize[1])
         #time.sleep(1)
         #print('test')
 
@@ -177,7 +176,7 @@ class ExMain(QWidget):
         # print('count : ', kdt.query_radius(points[:1], r=0.3, count_only=True))
         # print(kdt.query_radius(points[:1], r=0.3))
 
-        dbscan = DBSCAN(eps=1, min_samples=50).fit(points)
+        dbscan = DBSCAN(eps=1, min_samples=50, algorithm='ball_tree').fit(points)
         print('DBSCAN(', len(dbscan.labels_), ') : ', dbscan.labels_)
 
         #obj detection
@@ -193,7 +192,6 @@ class ExMain(QWidget):
             tempobjPos = self.objsPos[i]
             tempobjSize = self.objsSize[i]
 
-            # pos : 중심좌표로 생각하고 수정해야함 (현재 왼쪽 아래)
             index = np.asarray(np.where(dbscan.labels_ == i))
             # index = np.asarray(np.where(kmeans.labels_ == i))
             print(i, 'cluster 개수 : ', len(index[0]))
@@ -203,22 +201,6 @@ class ExMain(QWidget):
             tempobjSize[1] = np.max(points[index, 1]) - np.min(points[index, 1]) # y_max 1.3
             # print(i, 'cluster min : ', tempobjPos[0], tempobjPos[1])
             # print(i, 'cluster max : ', tempobjSize[0], tempobjSize[1])
-
-        # 테스트용 obj 생성, 임시로 0번째 obj에 x,y 좌표와 사이즈 입력
-        # tempobjPos = self.objsPos[0]
-        # tempobjSize = self.objsSize[0]
-        #
-        # index = np.asarray(np.where(dbscan.labels_ == 1))
-        #
-        # tempobjPos[0] = (np.max(points[index, 0]) + np.min(points[index, 0])) / 2
-        # tempobjPos[1] = (np.max(points[index, 1]) + np.min(points[index, 1])) / 2
-        # tempobjSize[0] = np.max(points[index, 0]) - np.min(points[index, 0])
-        # tempobjSize[1] = np.max(points[index, 1]) - np.min(points[index, 1])
-        # print(points[:, 0])
-        # print('x_min : ', np.min(points[index, 0]), 'y_min : ', np.min(points[index, 1]))
-        # print('x_max : ', np.max(points[index, 0]), 'y_max : ', np.max(points[index, 1]))
-        # print(tempobjPos[0], tempobjSize[0])
-
     def resetObjPos(self):
         for i, pos in enumerate(self.objsPos):
             # reset pos, size
