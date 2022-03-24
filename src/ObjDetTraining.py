@@ -15,11 +15,8 @@ import numpy as np
 from sklearn.cluster import KMeans
 from sklearn.neighbors import KDTree
 from sklearn.cluster import DBSCAN
-
 import pcl
 from sklearn.linear_model import RANSACRegressor
-import pandas as pd
-import seaborn
 
 import pcl
 # import pcl_helper # https://gist.github.com/adioshun/f35919c895631314394aa1762c24334c
@@ -27,7 +24,8 @@ import pcl
 class ExMain(QWidget):
     def __init__(self):
         super().__init__()
-
+        self.ALGO_FLAG = 2 # 1 : kdtree. 2 : dbscan
+        self.clusterLabel = list()
         hbox = QGridLayout()
         self.canvas = pg.GraphicsLayoutWidget()
         hbox.addWidget(self.canvas)
@@ -134,22 +132,10 @@ class ExMain(QWidget):
             #print(points)
             time.sleep(0.1) #빨리 볼라면 주석처리 하면됨
 
-    #여기부터 object detection 알고리즘 적용해 보면 됨
-    def doYourAlgorithm(self, points):
-        #filter
-        roi = {"x":[-30, 30], "y":[-10, 20], "z":[-1.5, 5.0]} # z값 수정
-
-        x_range = np.logical_and(points[:, 0] >= roi["x"][0], points[:, 0] <= roi["x"][1])
-        y_range = np.logical_and(points[:, 1] >= roi["y"][0], points[:, 1] <= roi["y"][1])
-        z_range = np.logical_and(points[:, 2] >= roi["z"][0], points[:, 2] <= roi["z"][1])
-
-        pass_through_filter = np.where(np.logical_and(x_range, np.logical_and(y_range, z_range))==True)[0]
-        points = points[pass_through_filter, :]
-
-        # downsampling
-        # <pointcloud random downsampling>
-        # idx = np.random.randint(len(points), size=10000)
-        # points = points[idx, :]
+    def downSampling(self, points):
+        # <random downsampling>
+        idx = np.random.randint(len(points), size=10000)
+        points = points[idx, :]
 
         # <voxel grid downsampling>
         # vox = points.make_voxel_grid_filter()
@@ -162,38 +148,52 @@ class ExMain(QWidget):
         # voxel_grid = open3d.geometry.VoxelGrid.create_from_point_cloud(points, voxel_size=0.1)
         # open3d.visualization.draw_geometries([voxel_grid])
 
-        # Clustering
-        # k_start = time.time()
-        # cluster = 10
-        # kmeans = KMeans(n_clusters=cluster, init='k-means++').fit(points)
-        # print('kmeans(', len(kmeans.labels_), ') : ', kmeans.labels_)
-        # k_end = time.time()
-        # print(k_end - k_start, 'sec')
-
-        # kdt = KDTree(points, leaf_size=500)
+    def kdtree(self, points):
+        rng = np.random.RandomState(0)
+        X = rng.random_sample((10, 3))  # 10 points in 3 dimensions
+        tree = KDTree(X, leaf_size=2)
+        dist, ind = tree.query(X[:1], k=5)
+        print(X)
+        print(X[:1])
+        print('dist', dist, 'index', ind)
+        # kdt = KDTree(points, leaf_size=40)
         # dist, ind = kdt.query(points[:1], k=10)
         # print('dist : ', dist, '\nind : ', ind)
         # print('count : ', kdt.query_radius(points[:1], r=0.3, count_only=True))
         # print(kdt.query_radius(points[:1], r=0.3))
 
+    def dbscan(self, points):
         dbscan = DBSCAN(eps=1, min_samples=50, algorithm='ball_tree').fit(points)
-        print('DBSCAN(', len(dbscan.labels_), ') : ', dbscan.labels_)
+        self.clusterLabel = dbscan.labels_
+        print('DBSCAN(', len(self.clusterLabel), ') : ', self.clusterLabel)
 
-        #obj detection
+    #여기부터 object detection 알고리즘 적용해 보면 됨
+    def doYourAlgorithm(self, points):
+        # Filter_ROI
+        roi = {"x":[-30, 30], "y":[-10, 20], "z":[-1.5, 5.0]} # z값 수정
 
-        # 그래프의 좌표 출력을 위해 pos 데이터에 최종 points 저장
-        self.pos = points
-        # print(self.pos)
-        # print(self.pos[0])
+        x_range = np.logical_and(points[:, 0] >= roi["x"][0], points[:, 0] <= roi["x"][1])
+        y_range = np.logical_and(points[:, 1] >= roi["y"][0], points[:, 1] <= roi["y"][1])
+        z_range = np.logical_and(points[:, 2] >= roi["z"][0], points[:, 2] <= roi["z"][1])
 
-        # for i in range(cluster): # kmeans
-        for i in range(max(dbscan.labels_)): # dbscan
-            # 테스트용 obj 생성, 임시로 0번째 obj에 x,y 좌표와 사이즈 입력
+        pass_through_filter = np.where(np.logical_and(x_range, np.logical_and(y_range, z_range))==True)[0]
+        points = points[pass_through_filter, :]
+
+        # Downsampling
+        # self.downSampling(points)
+
+        # Clustering
+        if self.ALGO_FLAG == 1:
+            self.kdtree(points)
+        elif self.ALGO_FLAG == 2:
+            self.dbscan(points)
+
+        # Bounding Box
+        for i in range(max(self.clusterLabel)): # dbscan
             tempobjPos = self.objsPos[i]
             tempobjSize = self.objsSize[i]
 
-            index = np.asarray(np.where(dbscan.labels_ == i))
-            # index = np.asarray(np.where(kmeans.labels_ == i))
+            index = np.asarray(np.where(self.clusterLabel == i))
             print(i, 'cluster 개수 : ', len(index[0]))
             tempobjPos[0] = (np.max(points[index, 0]) + np.min(points[index, 0]))/2  # x_min 1
             tempobjPos[1] = (np.max(points[index, 1]) + np.min(points[index, 1]))/2 # y_min 3
@@ -201,6 +201,13 @@ class ExMain(QWidget):
             tempobjSize[1] = np.max(points[index, 1]) - np.min(points[index, 1]) # y_max 1.3
             # print(i, 'cluster min : ', tempobjPos[0], tempobjPos[1])
             # print(i, 'cluster max : ', tempobjSize[0], tempobjSize[1])
+
+        #obj detection
+        # 그래프의 좌표 출력을 위해 pos 데이터에 최종 points 저장
+        self.pos = points
+        # print(self.pos)
+        # print(self.pos[0])
+
     def resetObjPos(self):
         for i, pos in enumerate(self.objsPos):
             # reset pos, size
