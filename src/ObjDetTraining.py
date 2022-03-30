@@ -60,7 +60,7 @@ class ExMain(QWidget):
 
 
         #load bagfile
-        test_bagfile = '/home/soobin/development/dataset/UrbanRoad/2022-02-10-19-54-31.bag'
+        test_bagfile = '/home/soju/snslab_ROS/test.bag'
         self.bag_file = rosbag.Bag(test_bagfile)
 
 
@@ -94,7 +94,7 @@ class ExMain(QWidget):
         #print('test')
 
     #ros 파일에서 velodyne_points 메시지만 불러오는 부분
-    def getbagfile(self):
+    def getbagfile(self):# 확인
         read_topic = '/velodyne_points' #메시지 타입
 
         for topic, msg, t in self.bag_file.read_messages(read_topic):
