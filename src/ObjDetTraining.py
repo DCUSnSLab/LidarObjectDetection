@@ -58,7 +58,7 @@ class ExMain(QWidget):
 
         #출력용 object를 미리 생성해둠
         #생성된 object의 position값을 입력하여 그래프에 출력할 수 있도록 함
-        numofobjs = 50
+        numofobjs = 100
         for i in range(numofobjs):
             obj = pg.QtGui.QGraphicsRectItem(-0.5, -0.5, 0.5, 0.5) #obj 크기는 1m로 고정시킴
             obj.setPen(pg.mkPen('w'))
@@ -149,23 +149,40 @@ class ExMain(QWidget):
         # open3d.visualization.draw_geometries([voxel_grid])
 
     def kdtree(self, points):
-        rng = np.random.RandomState(0)
-        X = rng.random_sample((10, 3))  # 10 points in 3 dimensions
-        tree = KDTree(X, leaf_size=2)
-        dist, ind = tree.query(X[:1], k=5)
-        print(X)
-        print(X[:1])
-        print('dist', dist, 'index', ind)
-        # kdt = KDTree(points, leaf_size=40)
-        # dist, ind = kdt.query(points[:1], k=10)
+        kdt = KDTree(points, leaf_size=40)
+        # cluster_list = [[0 for j in range(0, )] for i in range(3)]
+        cluster_list = [0 for i in range(len(points))]
+        cluster = 1
+        for i in range(3):
+            cluster = cluster + 1
+            random_point = random.randrange(len(points))
+            # dist, ind = kdt.query(points[random_point:random_point+1], k=10)
+            ind = kdt.query_radius(points[random_point:random_point+1], r=1)[0]
+            # print(ind)
+            for j in ind:
+                cluster_list[j] = cluster
+        self.clusterLabel = np.asarray(cluster_list)
+
+
+            # print('cluster_point : ', random_point, ', ', ind)
+
+        # print('length : ', len(points), ', random point : ', random_point, ', random point list : ', points[random_point])
+        # dist, ind = kdt.query(points[:], k=10)
+        # print(points[:])
+
+        #print('tree', kdt.get_tree_stats())
         # print('dist : ', dist, '\nind : ', ind)
+
         # print('count : ', kdt.query_radius(points[:1], r=0.3, count_only=True))
         # print(kdt.query_radius(points[:1], r=0.3))
 
-    def dbscan(self, points):
-        dbscan = DBSCAN(eps=1, min_samples=50, algorithm='ball_tree').fit(points)
+    def dbscan(self, points): # dbscan eps = 1.5, min_size = 60
+        dbscan = DBSCAN(eps=1, min_samples=20, algorithm='ball_tree').fit(points)
         self.clusterLabel = dbscan.labels_
         print('DBSCAN(', len(self.clusterLabel), ') : ', self.clusterLabel)
+        # print(self.clusterLabel)
+        # for i in self.clusterLabel:
+        #     print(i, end='')
 
     #여기부터 object detection 알고리즘 적용해 보면 됨
     def doYourAlgorithm(self, points):
@@ -188,17 +205,30 @@ class ExMain(QWidget):
         elif self.ALGO_FLAG == 2:
             self.dbscan(points)
 
+
         # Bounding Box
-        for i in range(max(self.clusterLabel)): # dbscan
+        for i in range(1, max(self.clusterLabel)+1):
             tempobjPos = self.objsPos[i]
             tempobjSize = self.objsSize[i]
 
             index = np.asarray(np.where(self.clusterLabel == i))
-            print(i, 'cluster 개수 : ', len(index[0]))
-            tempobjPos[0] = (np.max(points[index, 0]) + np.min(points[index, 0]))/2  # x_min 1
-            tempobjPos[1] = (np.max(points[index, 1]) + np.min(points[index, 1]))/2 # y_min 3
-            tempobjSize[0] = np.max(points[index, 0]) - np.min(points[index, 0]) # x_max 3
-            tempobjSize[1] = np.max(points[index, 1]) - np.min(points[index, 1]) # y_max 1.3
+            # print(i, 'cluster 개수 : ', len(index[0]))
+            cx = (np.max(points[index, 0]) + np.min(points[index, 0]))/2  # x_min 1
+            cy = (np.max(points[index, 1]) + np.min(points[index, 1]))/2 # y_min 3
+            x_size = np.max(points[index, 0]) - np.min(points[index, 0]) # x_max 3
+            y_size = np.max(points[index, 1]) - np.min(points[index, 1])  # y_max 1.3
+
+            # car size bounding box
+            carLength = 4.7 # 경차 : 3.6 소형 : 4.7
+            carHeight = 2 # 경차 : 2 소형 : 2
+            if (x_size <= carLength) and (y_size <= carHeight):
+                tempobjPos[0] = cx
+                tempobjPos[1] = cy
+                tempobjSize[0] = x_size
+                tempobjSize[1] = y_size
+            else:
+                pass
+
             # print(i, 'cluster min : ', tempobjPos[0], tempobjPos[1])
             # print(i, 'cluster max : ', tempobjSize[0], tempobjSize[1])
 
