@@ -1,5 +1,3 @@
-import geomdl as geomdl
-import open3d as open3d
 import pyqtgraph as pg
 import ros_numpy
 import sensor_msgs
@@ -12,20 +10,23 @@ import time, random
 from threading import Thread
 import numpy as np
 
-from sklearn.cluster import KMeans
-from sklearn.neighbors import KDTree
-from sklearn.cluster import DBSCAN
-import pcl
-from sklearn.linear_model import RANSACRegressor
-
-import pcl
-# import pcl_helper # https://gist.github.com/adioshun/f35919c895631314394aa1762c24334c
+read_topic = '/velodyne_points'  # 메시지 타입
 
 class ExMain(QWidget):
     def __init__(self):
         super().__init__()
-        self.ALGO_FLAG = 2 # 1 : kdtree. 2 : dbscan
-        self.clusterLabel = list()
+
+        self.getslider = None
+        secs_list = []
+        nsecs_list = []
+
+        self.start_secs_time = 0
+        self.start_nsecs_time = 0
+
+        self.t = 0
+        self.list1 = [0, 0]
+        self.flag = False
+
         hbox = QGridLayout()
         self.canvas = pg.GraphicsLayoutWidget()
         hbox.addWidget(self.canvas)
@@ -75,6 +76,23 @@ class ExMain(QWidget):
         test_bagfile = '/home/soju/snslab_ROS/test.bag'
         self.bag_file = rosbag.Bag(test_bagfile)
 
+        self.slider = None
+        self.slider = QSlider(Qt.Horizontal, self)
+        self.slider.setGeometry(10, 0, 650, 30)
+        self.slider.sliderMoved.connect(self.change)
+
+        # sliderMin = self.secs_dict
+        for topic, msg, t in self.bag_file.read_messages(read_topic):
+            secs_list.append(msg.header.stamp.secs)
+            nsecs_list.append(msg.header.stamp.nsecs)
+            self.secs_dict = dict(zip(range(len(secs_list)), secs_list))
+            self.nsecs_dict = dict(zip(range(len(nsecs_list)), nsecs_list))
+        sliderMax = len(secs_list)
+
+        self.slider.setRange(0, sliderMax)
+        self.slider.setSingleStep(1)
+
+
         #ros thread
         self.bagthreadFlag = True
         self.bagthread = Thread(target=self.getbagfile)
@@ -86,6 +104,12 @@ class ExMain(QWidget):
 
         self.show()
 
+    def change(self, val):
+        self.start_secs_time = self.secs_dict[val]
+        self.start_nsecs_time = self.nsecs_dict[val]
+        self.list1.insert(1, val)
+        del (self.list1[2])
+        self.flag = True
 
     @pyqtSlot()
     def get_data(self):
@@ -106,107 +130,53 @@ class ExMain(QWidget):
         #print('test')
 
     #ros 파일에서 velodyne_points 메시지만 불러오는 부분
-    def getbagfile(self):# 확인
-        read_topic = '/velodyne_points' #메시지 타입
+    def getbagfile(self):
+        while True:
+            for topic, msg, t in self.bag_file.read_messages(read_topic, start_time=rospy.Time(self.start_secs_time,self.start_nsecs_time)):
+                if self.bagthreadFlag is False:
+                    break
+                #ros_numpy 데이터 타입 문제로 class를 강제로 변경
+                msg.__class__ = sensor_msgs.msg._PointCloud2.PointCloud2
 
-        for topic, msg, t in self.bag_file.read_messages(read_topic):
-            if self.bagthreadFlag is False:
-                break
-            #ros_numpy 데이터 타입 문제로 class를 강제로 변경
-            msg.__class__ = sensor_msgs.msg._PointCloud2.PointCloud2
+                #get point cloud
+                pc = ros_numpy.numpify(msg)
+                points = np.zeros((pc.shape[0], 4)) #point배열 초기화 1번 컬럼부터 x, y, z, intensity 저장 예정
 
-            #get point cloud
-            pc = ros_numpy.numpify(msg)
-            points = np.zeros((pc.shape[0], 3)) #point배열 초기화 1번 컬럼부터 x, y, z, intensity 저장 예정
+                # for ROS and vehicle, x axis is long direction, y axis is lat direction
+                # ros 데이터는 x축이 정북 방향, y축이 서쪽 방향임, 좌표계 오른손 법칙을 따름
+                points[:, 0] = pc['x']
+                points[:, 1] = pc['y']
+                points[:, 2] = pc['z']
+                points[:, 3] = pc['intensity']
 
-            # for ROS and vehicle, x axis is long direction, y axis is lat direction
-            # ros 데이터는 x축이 정북 방향, y축이 서쪽 방향임, 좌표계 오른손 법칙을 따름
-            points[:, 0] = pc['x']
-            points[:, 1] = pc['y']
-            points[:, 2] = pc['z']
-            # points[:, 3] = pc['intensity']
+                self.resetObjPos()
+                self.doYourAlgorithm(points)
 
-            self.resetObjPos()
-            self.doYourAlgorithm(points)
+                #print(points)
+                time.sleep(0.1) #빨리 볼라면 주석처리 하면됨
 
-            #print(points)
-            time.sleep(0.1) #빨리 볼라면 주석처리 하면됨
-
-    def downSampling(self, points):
-        # <random downsampling>
-        idx = np.random.randint(len(points), size=10000)
-        points = points[idx, :]
-
-        # <voxel grid downsampling>
-        # vox = points.make_voxel_grid_filter()
-        # vox.set_leaf_size(0.01, 0.01, 0.01)
-        # points = vox.filter()
-        # print(points)
-
-        # open3d.visualization.draw_geometries([points])
-        # points.scale(1/points.get_max_bound()-points.get_min_bound())
-        # voxel_grid = open3d.geometry.VoxelGrid.create_from_point_cloud(points, voxel_size=0.1)
-        # open3d.visualization.draw_geometries([voxel_grid])
-
-    def kdtree(self, points):
-        rng = np.random.RandomState(0)
-        X = rng.random_sample((10, 3))  # 10 points in 3 dimensions
-        tree = KDTree(X, leaf_size=2)
-        dist, ind = tree.query(X[:1], k=5)
-        print(X)
-        print(X[:1])
-        print('dist', dist, 'index', ind)
-        # kdt = KDTree(points, leaf_size=40)
-        # dist, ind = kdt.query(points[:1], k=10)
-        # print('dist : ', dist, '\nind : ', ind)
-        # print('count : ', kdt.query_radius(points[:1], r=0.3, count_only=True))
-        # print(kdt.query_radius(points[:1], r=0.3))
-
-    def dbscan(self, points):
-        dbscan = DBSCAN(eps=1, min_samples=50, algorithm='ball_tree').fit(points)
-        self.clusterLabel = dbscan.labels_
-        print('DBSCAN(', len(self.clusterLabel), ') : ', self.clusterLabel)
+                if self.flag == True:
+                    self.flag = False
+                    break
 
     #여기부터 object detection 알고리즘 적용해 보면 됨
     def doYourAlgorithm(self, points):
-        # Filter_ROI
-        roi = {"x":[-30, 30], "y":[-10, 20], "z":[-1.5, 5.0]} # z값 수정
+        #downsampling
 
-        x_range = np.logical_and(points[:, 0] >= roi["x"][0], points[:, 0] <= roi["x"][1])
-        y_range = np.logical_and(points[:, 1] >= roi["y"][0], points[:, 1] <= roi["y"][1])
-        z_range = np.logical_and(points[:, 2] >= roi["z"][0], points[:, 2] <= roi["z"][1])
-
-        pass_through_filter = np.where(np.logical_and(x_range, np.logical_and(y_range, z_range))==True)[0]
-        points = points[pass_through_filter, :]
-
-        # Downsampling
-        # self.downSampling(points)
-
-        # Clustering
-        if self.ALGO_FLAG == 1:
-            self.kdtree(points)
-        elif self.ALGO_FLAG == 2:
-            self.dbscan(points)
-
-        # Bounding Box
-        for i in range(max(self.clusterLabel)): # dbscan
-            tempobjPos = self.objsPos[i]
-            tempobjSize = self.objsSize[i]
-
-            index = np.asarray(np.where(self.clusterLabel == i))
-            print(i, 'cluster 개수 : ', len(index[0]))
-            tempobjPos[0] = (np.max(points[index, 0]) + np.min(points[index, 0]))/2  # x_min 1
-            tempobjPos[1] = (np.max(points[index, 1]) + np.min(points[index, 1]))/2 # y_min 3
-            tempobjSize[0] = np.max(points[index, 0]) - np.min(points[index, 0]) # x_max 3
-            tempobjSize[1] = np.max(points[index, 1]) - np.min(points[index, 1]) # y_max 1.3
-            # print(i, 'cluster min : ', tempobjPos[0], tempobjPos[1])
-            # print(i, 'cluster max : ', tempobjSize[0], tempobjSize[1])
+        #filter
 
         #obj detection
+
         # 그래프의 좌표 출력을 위해 pos 데이터에 최종 points 저장
         self.pos = points
-        # print(self.pos)
-        # print(self.pos[0])
+
+        #테스트용 obj 생성, 임시로 0번째 obj에 x,y 좌표와 사이즈 입력
+        tempobjPos = self.objsPos[0]
+        tempobjSize = self.objsSize[0]
+        tempobjPos[0] = 1
+        tempobjPos[1] = 3
+        tempobjSize[0] = 3
+        tempobjSize[1] = 1.3
 
     def resetObjPos(self):
         for i, pos in enumerate(self.objsPos):
