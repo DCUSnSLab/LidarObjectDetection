@@ -10,11 +10,20 @@ import time, random
 from threading import Thread
 import numpy as np
 
+from sklearn.cluster import KMeans
+from sklearn.neighbors import KDTree
+from sklearn.cluster import DBSCAN
+import pcl
+from sklearn.linear_model import RANSACRegressor
+
 read_topic = '/velodyne_points'  # 메시지 타입
 
 class ExMain(QWidget):
     def __init__(self):
         super().__init__()
+
+        self.ALGO_FLAG = 2  # 1 : kdtree. 2 : dbscan
+        self.clusterLabel = list()
 
         self.getslider = None
         secs_list = []
@@ -73,7 +82,7 @@ class ExMain(QWidget):
 
 
         #load bagfile
-        test_bagfile = '/home/soju/snslab_ROS/test.bag'
+        test_bagfile = '/home/soju/snslab_ROS/test2.bag'
         self.bag_file = rosbag.Bag(test_bagfile)
 
         self.slider = None
@@ -137,46 +146,132 @@ class ExMain(QWidget):
                     break
                 #ros_numpy 데이터 타입 문제로 class를 강제로 변경
                 msg.__class__ = sensor_msgs.msg._PointCloud2.PointCloud2
-
+        
                 #get point cloud
                 pc = ros_numpy.numpify(msg)
                 points = np.zeros((pc.shape[0], 4)) #point배열 초기화 1번 컬럼부터 x, y, z, intensity 저장 예정
-
+        
                 # for ROS and vehicle, x axis is long direction, y axis is lat direction
                 # ros 데이터는 x축이 정북 방향, y축이 서쪽 방향임, 좌표계 오른손 법칙을 따름
                 points[:, 0] = pc['x']
                 points[:, 1] = pc['y']
                 points[:, 2] = pc['z']
-                points[:, 3] = pc['intensity']
-
+                # points[:, 3] = pc['intensity']
+        
                 self.resetObjPos()
                 self.doYourAlgorithm(points)
-
+        
                 #print(points)
                 time.sleep(0.1) #빨리 볼라면 주석처리 하면됨
-
+        
                 if self.flag == True:
                     self.flag = False
                     break
 
-    #여기부터 object detection 알고리즘 적용해 보면 됨
+    def downSampling(self, points):
+        # <random downsampling>
+        idx = np.random.randint(len(points), size=10000)
+        points = points[idx, :]
+
+        # <voxel grid downsampling>
+        # vox = points.make_voxel_grid_filter()
+        # vox.set_leaf_size(0.01, 0.01, 0.01)
+        # points = vox.filter()
+        # print(points)
+
+        # open3d.visualization.draw_geometries([points])
+        # points.scale(1/points.get_max_bound()-points.get_min_bound())
+        # voxel_grid = open3d.geometry.VoxelGrid.create_from_point_cloud(points, voxel_size=0.1)
+        # open3d.visualization.draw_geometries([voxel_grid])
+
+    def kdtree(self, points):
+        kdt = KDTree(points, leaf_size=40)
+        # cluster_list = [[0 for j in range(0, )] for i in range(3)]
+        cluster_list = [0 for i in range(len(points))]
+        cluster = 1
+        for i in range(3):
+            cluster = cluster + 1
+            random_point = random.randrange(len(points))
+            # dist, ind = kdt.query(points[random_point:random_point+1], k=10)
+            ind = kdt.query_radius(points[random_point:random_point + 1], r=1)[0]
+            # print(ind)
+            for j in ind:
+                cluster_list[j] = cluster
+        self.clusterLabel = np.asarray(cluster_list)
+
+        # print('cluster_point : ', random_point, ', ', ind)
+
+        # print('length : ', len(points), ', random point : ', random_point, ', random point list : ', points[random_point])
+        # dist, ind = kdt.query(points[:], k=10)
+        # print(points[:])
+
+        # print('tree', kdt.get_tree_stats())
+        # print('dist : ', dist, '\nind : ', ind)
+
+        # print('count : ', kdt.query_radius(points[:1], r=0.3, count_only=True))
+        # print(kdt.query_radius(points[:1], r=0.3))
+
+    def dbscan(self, points):  # dbscan eps = 1.5, min_size = 60
+        dbscan = DBSCAN(eps=1, min_samples=20, algorithm='ball_tree').fit(points)
+        self.clusterLabel = dbscan.labels_
+        print('DBSCAN(', len(self.clusterLabel), ') : ', self.clusterLabel)
+        # print(self.clusterLabel)
+        # for i in self.clusterLabel:
+        #     print(i, end='')
+
+        # 여기부터 object detection 알고리즘 적용해 보면 됨
+
     def doYourAlgorithm(self, points):
-        #downsampling
+        # Filter_ROI
+        roi = {"x": [-30, 30], "y": [-10, 20], "z": [-1.5, 5.0]}  # z값 수정
 
-        #filter
+        x_range = np.logical_and(points[:, 0] >= roi["x"][0], points[:, 0] <= roi["x"][1])
+        y_range = np.logical_and(points[:, 1] >= roi["y"][0], points[:, 1] <= roi["y"][1])
+        z_range = np.logical_and(points[:, 2] >= roi["z"][0], points[:, 2] <= roi["z"][1])
 
-        #obj detection
+        pass_through_filter = np.where(np.logical_and(x_range, np.logical_and(y_range, z_range)) == True)[0]
+        points = points[pass_through_filter, :]
 
+        # Downsampling
+        # self.downSampling(points)
+
+        # Clustering
+        if self.ALGO_FLAG == 1:
+            self.kdtree(points)
+        elif self.ALGO_FLAG == 2:
+            self.dbscan(points)
+
+        # Bounding Box
+        for i in range(1, max(self.clusterLabel) + 1):
+            tempobjPos = self.objsPos[i]
+            tempobjSize = self.objsSize[i]
+
+            index = np.asarray(np.where(self.clusterLabel == i))
+            # print(i, 'cluster 개수 : ', len(index[0]))
+            cx = (np.max(points[index, 0]) + np.min(points[index, 0])) / 2  # x_min 1
+            cy = (np.max(points[index, 1]) + np.min(points[index, 1])) / 2  # y_min 3
+            x_size = np.max(points[index, 0]) - np.min(points[index, 0])  # x_max 3
+            y_size = np.max(points[index, 1]) - np.min(points[index, 1])  # y_max 1.3
+
+            # car size bounding box
+            carLength = 4.7  # 경차 : 3.6 소형 : 4.7
+            carHeight = 2  # 경차 : 2 소형 : 2
+            if (x_size <= carLength) and (y_size <= carHeight):
+                tempobjPos[0] = cx
+                tempobjPos[1] = cy
+                tempobjSize[0] = x_size
+                tempobjSize[1] = y_size
+            else:
+                pass
+
+            # print(i, 'cluster min : ', tempobjPos[0], tempobjPos[1])
+            # print(i, 'cluster max : ', tempobjSize[0], tempobjSize[1])
+
+        # obj detection
         # 그래프의 좌표 출력을 위해 pos 데이터에 최종 points 저장
         self.pos = points
-
-        #테스트용 obj 생성, 임시로 0번째 obj에 x,y 좌표와 사이즈 입력
-        tempobjPos = self.objsPos[0]
-        tempobjSize = self.objsSize[0]
-        tempobjPos[0] = 1
-        tempobjPos[1] = 3
-        tempobjSize[0] = 3
-        tempobjSize[1] = 1.3
+        # print(self.pos)
+        # print(self.pos[0])
 
     def resetObjPos(self):
         for i, pos in enumerate(self.objsPos):
