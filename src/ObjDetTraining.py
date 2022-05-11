@@ -17,7 +17,7 @@ import pcl
 from sklearn.linear_model import RANSACRegressor
 
 read_topic = '/velodyne_points'  # 메시지 타입
-
+count = 1
 class ExMain(QWidget):
     def __init__(self):
         super().__init__()
@@ -29,12 +29,14 @@ class ExMain(QWidget):
         secs_list = []
         nsecs_list = []
 
+
         self.start_secs_time = 0
         self.start_nsecs_time = 0
 
         self.t = 0
         self.list1 = [0, 0]
         self.flag = False
+
 
         hbox = QGridLayout()
         self.canvas = pg.GraphicsLayoutWidget()
@@ -89,6 +91,9 @@ class ExMain(QWidget):
         self.slider = QSlider(Qt.Horizontal, self)
         self.slider.setGeometry(10, 0, 650, 30)
         self.slider.sliderMoved.connect(self.change)
+        # self.slider.valueChanged(self.count_base())
+        # self.count_base.valueChanged(self.slider.setValue)
+
 
         # sliderMin = self.secs_dict
         for topic, msg, t in self.bag_file.read_messages(read_topic):
@@ -97,6 +102,7 @@ class ExMain(QWidget):
             self.secs_dict = dict(zip(range(len(secs_list)), secs_list))
             self.nsecs_dict = dict(zip(range(len(nsecs_list)), nsecs_list))
         sliderMax = len(secs_list)
+
 
         self.slider.setRange(0, sliderMax)
         self.slider.setSingleStep(1)
@@ -116,9 +122,21 @@ class ExMain(QWidget):
     def change(self, val):
         self.start_secs_time = self.secs_dict[val]
         self.start_nsecs_time = self.nsecs_dict[val]
+
         self.list1.insert(1, val)
+        global count
+        count = val
+
         del (self.list1[2])
         self.flag = True
+
+    def count_base(self):
+        global count
+        count += 1
+        self.slider.setValue(count)
+
+
+
 
     @pyqtSlot()
     def get_data(self):
@@ -142,6 +160,7 @@ class ExMain(QWidget):
     def getbagfile(self):
         while True:
             for topic, msg, t in self.bag_file.read_messages(read_topic, start_time=rospy.Time(self.start_secs_time,self.start_nsecs_time)):
+
                 if self.bagthreadFlag is False:
                     break
                 #ros_numpy 데이터 타입 문제로 class를 강제로 변경
@@ -160,13 +179,17 @@ class ExMain(QWidget):
         
                 self.resetObjPos()
                 self.doYourAlgorithm(points)
-        
+
+                self.count_base()
+                print(count)
+
                 #print(points)
                 time.sleep(0.1) #빨리 볼라면 주석처리 하면됨
-        
+
                 if self.flag == True:
                     self.flag = False
                     break
+
 
     def downSampling(self, points):
         # <random downsampling>
@@ -214,7 +237,7 @@ class ExMain(QWidget):
     def dbscan(self, points):  # dbscan eps = 1.5, min_size = 60
         dbscan = DBSCAN(eps=1, min_samples=20, algorithm='ball_tree').fit(points)
         self.clusterLabel = dbscan.labels_
-        print('DBSCAN(', len(self.clusterLabel), ') : ', self.clusterLabel)
+        # print('DBSCAN(', len(self.clusterLabel), ') : ', self.clusterLabel)
         # print(self.clusterLabel)
         # for i in self.clusterLabel:
         #     print(i, end='')
