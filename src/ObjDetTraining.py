@@ -17,7 +17,7 @@ import pcl
 from sklearn.linear_model import RANSACRegressor
 
 read_topic = '/velodyne_points'  # 메시지 타입
-count = 1
+count = 0
 class ExMain(QWidget):
     def __init__(self):
         super().__init__()
@@ -28,6 +28,8 @@ class ExMain(QWidget):
         self.getslider = None
         secs_list = []
         nsecs_list = []
+        self.btn_Flag = None
+        self.D_flag = False
 
 
         self.start_secs_time = 0
@@ -89,10 +91,26 @@ class ExMain(QWidget):
 
         self.slider = None
         self.slider = QSlider(Qt.Horizontal, self)
-        self.slider.setGeometry(10, 0, 650, 30)
+
+        # self.slider.sizePolicy().horizontalPolicy(QSizePolicy.Maximum)
         self.slider.sliderMoved.connect(self.change)
         # self.slider.valueChanged(self.count_base())
         # self.count_base.valueChanged(self.slider.setValue)
+
+        self.btn = QPushButton("||")
+        self.Decreasebtn = QPushButton("->")
+        self.btn.setCheckable(True)
+        self.label = QLabel('label',self)
+        # self.text = QLabel(self.)
+        # self.text.setText(self,"aa")
+        # self.btn.setCheckable(True)
+        # self.btn.clicked.connect(self.getbagfile)
+        self.btn.clicked.connect(self.btn_event)
+        self.Decreasebtn.clicked.connect(self.DecreaseButton)
+        hbox.addWidget(self.slider)
+        hbox.addWidget(self.btn)
+        hbox.addWidget(self.Decreasebtn)
+        hbox.addWidget(self.label)
 
 
         # sliderMin = self.secs_dict
@@ -101,10 +119,9 @@ class ExMain(QWidget):
             nsecs_list.append(msg.header.stamp.nsecs)
             self.secs_dict = dict(zip(range(len(secs_list)), secs_list))
             self.nsecs_dict = dict(zip(range(len(nsecs_list)), nsecs_list))
-        sliderMax = len(secs_list)
+        self.sliderMax = len(secs_list)
 
-
-        self.slider.setRange(0, sliderMax)
+        self.slider.setRange(0, self.sliderMax)
         self.slider.setSingleStep(1)
 
 
@@ -132,9 +149,35 @@ class ExMain(QWidget):
 
     def count_base(self):
         global count
-        count += 1
-        self.slider.setValue(count)
+        if count <= self.sliderMax:
+            count += 1
+            a= str(count)
+            self.label.setText(a)
+            self.slider.setValue(count)
+        else:
+            print("err")
 
+    def btn_event(self):
+        self.btn_Flag = self.btn.isChecked()
+        print(self.btn_Flag)
+        if self.btn_Flag == True:
+            self.btn.setText("▶")
+        else:
+            self.btn.setText("||")
+
+    def DecreaseButton(self,n):
+        global count
+        n = count+200
+        self.start_secs_time = self.secs_dict[n]
+        self.start_nsecs_time = self.nsecs_dict[n]
+        print(n)
+        print(count)
+        self.list1.insert(1, n)
+        count = n
+        del (self.list1[2])
+        if self.D_flag == False:
+            self.btn_Flag= False
+            self.D_flag = True
 
 
 
@@ -163,33 +206,37 @@ class ExMain(QWidget):
 
                 if self.bagthreadFlag is False:
                     break
+
+                if self.btn_Flag is True:# 일시정지
+                    break
+
+
                 #ros_numpy 데이터 타입 문제로 class를 강제로 변경
                 msg.__class__ = sensor_msgs.msg._PointCloud2.PointCloud2
-        
+
                 #get point cloud
                 pc = ros_numpy.numpify(msg)
                 points = np.zeros((pc.shape[0], 4)) #point배열 초기화 1번 컬럼부터 x, y, z, intensity 저장 예정
-        
+
                 # for ROS and vehicle, x axis is long direction, y axis is lat direction
                 # ros 데이터는 x축이 정북 방향, y축이 서쪽 방향임, 좌표계 오른손 법칙을 따름
                 points[:, 0] = pc['x']
                 points[:, 1] = pc['y']
                 points[:, 2] = pc['z']
                 # points[:, 3] = pc['intensity']
-        
                 self.resetObjPos()
                 self.doYourAlgorithm(points)
-
                 self.count_base()
-                print(count)
-
-                #print(points)
                 time.sleep(0.1) #빨리 볼라면 주석처리 하면됨
 
-                if self.flag == True:
+
+                if self.flag == True:#슬라이더
                     self.flag = False
                     break
 
+                if self.D_flag == True:
+                    if self.btn_Flag == True:
+                        break
 
     def downSampling(self, points):
         # <random downsampling>
