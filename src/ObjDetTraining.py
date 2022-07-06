@@ -15,17 +15,15 @@ import numpy as np
 from sklearn.cluster import KMeans
 from sklearn.neighbors import KDTree
 from sklearn.cluster import DBSCAN
-import pcl
+from sklearn.preprocessing import StandardScaler
 from sklearn.linear_model import RANSACRegressor
-
-import pcl
-# import pcl_helper # https://gist.github.com/adioshun/f35919c895631314394aa1762c24334c
 
 class ExMain(QWidget):
     def __init__(self):
         super().__init__()
         self.ALGO_FLAG = 2 # 1 : kdtree. 2 : dbscan
         self.clusterLabel = list()
+        self.frame = 1
         hbox = QGridLayout()
         self.canvas = pg.GraphicsLayoutWidget()
         hbox.addWidget(self.canvas)
@@ -78,7 +76,7 @@ class ExMain(QWidget):
         #ros thread
         self.bagthreadFlag = True
         self.bagthread = Thread(target=self.getbagfile)
-        self.bagthread.start()
+        self.bagthread.start() # 기존 값 10
         #Graph Timer 시작
         self.mytimer = QTimer()
         self.mytimer.start(10)  # 1초마다 차트 갱신 위함...
@@ -90,7 +88,7 @@ class ExMain(QWidget):
     @pyqtSlot()
     def get_data(self):
         if self.pos is not None:
-            self.spt.setData(pos=self.pos)  # line chart 그리기
+            self.spt.setData(pos=self.pos)  # line chart 그리기 (x, y)쌍의 2D 구조
 
         #object 출력
         #50개 object중 position 값이 0,0이 아닌것만 출력
@@ -101,7 +99,8 @@ class ExMain(QWidget):
                 obj.setVisible(False)
             else:
                 obj.setVisible(True)
-                obj.setRect((objpos[0])-(objsize[0]/2), (objpos[1])-(objsize[1]/2), objsize[0], objsize[1])
+                # obj.setRect((objpos[0])-(objsize[0]/2), (objpos[1])-(objsize[1]/2), objsize[0], objsize[1])
+                obj.setRect(objpos[0], objpos[1], objsize[0], objsize[1])
         #time.sleep(1)
         #print('test')
 
@@ -126,8 +125,10 @@ class ExMain(QWidget):
             points[:, 2] = pc['z']
             # points[:, 3] = pc['intensity']
 
+            start = time.time()
             self.resetObjPos()
             self.doYourAlgorithm(points)
+            print("time : ", time.time() - start)
 
             #print(points)
             time.sleep(0.1) #빨리 볼라면 주석처리 하면됨
@@ -177,9 +178,18 @@ class ExMain(QWidget):
         # print(kdt.query_radius(points[:1], r=0.3))
 
     def dbscan(self, points): # dbscan eps = 1.5, min_size = 60
+        # scaler = StandardScaler()
+        # scaler.fit(points)
+        # X_scaled = scaler.transform(points)
+        #
+        # dbscan = DBSCAN().fit_predict(X_scaled)
+        # print(dbscan)
+        # self.clusterLabel = dbscan.labels_
+
         dbscan = DBSCAN(eps=1, min_samples=20, algorithm='ball_tree').fit(points)
         self.clusterLabel = dbscan.labels_
-        print('DBSCAN(', len(self.clusterLabel), ') : ', self.clusterLabel)
+
+        # print('DBSCAN(', len(self.clusterLabel), ') : ', self.clusterLabel)
         # print(self.clusterLabel)
         # for i in self.clusterLabel:
         #     print(i, end='')
@@ -205,38 +215,44 @@ class ExMain(QWidget):
         elif self.ALGO_FLAG == 2:
             self.dbscan(points)
 
-
+        clusterCnt = max(self.clusterLabel)+1
         # Bounding Box
-        for i in range(1, max(self.clusterLabel)+1):
+        for i in range(1, clusterCnt):
             tempobjPos = self.objsPos[i]
             tempobjSize = self.objsSize[i]
 
             index = np.asarray(np.where(self.clusterLabel == i))
             # print(i, 'cluster 개수 : ', len(index[0]))
-            cx = (np.max(points[index, 0]) + np.min(points[index, 0]))/2  # x_min 1
-            cy = (np.max(points[index, 1]) + np.min(points[index, 1]))/2 # y_min 3
-            x_size = np.max(points[index, 0]) - np.min(points[index, 0]) # x_max 3
-            y_size = np.max(points[index, 1]) - np.min(points[index, 1])  # y_max 1.3
+            # cx = (np.max(points[index, 0]) + np.min(points[index, 0]))/2  # x_min 1
+            # cy = (np.max(points[index, 1]) + np.min(points[index, 1]))/2 # y_min 3
+            if np.max(points[index, 0]) < 0:
+                x = np.min(points[index, 0])
+                y = np.min(points[index, 1])
+                x_size = np.max(points[index, 0]) - np.min(points[index, 0])  # x_max 3
+                y_size = np.max(points[index, 1]) - np.min(points[index, 1])  # y_max 1.3
+            else:
+                x = np.max(points[index, 0])
+                y = np.max(points[index, 1])
+                x_size = -(np.max(points[index, 0]) - np.min(points[index, 0]))  # x_max 3
+                y_size = -(np.max(points[index, 1]) - np.min(points[index, 1]))  # y_max 1.3
+
 
             # car size bounding box
             carLength = 4.7 # 경차 : 3.6 소형 : 4.7
             carHeight = 2 # 경차 : 2 소형 : 2
-            if (x_size <= carLength) and (y_size <= carHeight):
-                tempobjPos[0] = cx
-                tempobjPos[1] = cy
+            if (abs(x_size) <= carLength+1) and (abs(y_size) <= carHeight+1): # 차량 길이 비교할 때 마이너스로 비교하면 X / 따라서 절대값으로 비교
+                tempobjPos[0] = x
+                tempobjPos[1] = y
                 tempobjSize[0] = x_size
                 tempobjSize[1] = y_size
-            else:
-                pass
-
-            # print(i, 'cluster min : ', tempobjPos[0], tempobjPos[1])
-            # print(i, 'cluster max : ', tempobjSize[0], tempobjSize[1])
+                # print(i, 'cluster min : ', tempobjPos[0], tempobjPos[1])
+                # print(i, 'cluster max : ', tempobjSize[0], tempobjSize[1])
 
         #obj detection
         # 그래프의 좌표 출력을 위해 pos 데이터에 최종 points 저장
         self.pos = points
-        # print(self.pos)
-        # print(self.pos[0])
+        # print(self.frame)
+        self.frame += 1
 
     def resetObjPos(self):
         for i, pos in enumerate(self.objsPos):
