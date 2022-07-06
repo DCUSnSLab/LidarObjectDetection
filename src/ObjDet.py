@@ -114,9 +114,26 @@ class ExMain(QWidget):
             self.objsPos.append(pos)
             self.objsSize.append(size)
 
+        #pyqtgraph에 Collect Object 생성
+        for i in range(numofobjs):
+            collect_obj = pg.QtGui.QGraphicsRectItem(-0.5, -0.5, 0.5, 0.5) #obj 크기는 1m로 고정시킴
+            collect_obj.setBrush(QColor(18, 241, 246))
+            collect_obj.setOpacity(0.2)
+            self.view.addItem(collect_obj)
+            self.collect_objs.append(collect_obj)
+
+            tolerance_border = pg.QtGui.QGraphicsRectItem(-0.5, -0.5, 0.5, 0.5)  # obj 크기는 1m로 고정시킴
+            tolerance_border.setPen(pg.mkPen(QColor(18, 241, 246)))
+            self.view.addItem(tolerance_border)
+            self.tolerance_borders.append(tolerance_border)
+
+            collect_border = pg.QtGui.QGraphicsRectItem(-0.5, -0.5, 0.5, 0.5)  # obj 크기는 1m로 고정시킴
+            collect_border.setPen(pg.mkPen(QColor(255, 255, 0)))
+            self.view.addItem(collect_border)
+            self.collect_borders.append(collect_border)
 
         #load bagfile
-        test_bagfile = '/home/hyewon/development/dataset/UrbanRoad/2022-02-10-19-54-31.bag'
+        test_bagfile = '/home/soobin/development/dataset/UrbanRoad/2022-02-10-19-54-31.bag'
         self.bag_file = rosbag.Bag(test_bagfile)
 
         self.slider = None
@@ -189,6 +206,12 @@ class ExMain(QWidget):
             print("err")
 
     def creat_collect_box(self):
+        #gui에 생성된 모든 collect object들의 표시상태를 false로 변경함. (초기화)
+        for i in range(len(self.collect_objs)):
+            self.collect_objs[i].setVisible(False)
+            self.tolerance_borders[i].setVisible(False)
+            self.collect_borders[i].setVisible(False)
+
         # 여기서 frame 부분을 현재 frame count와 동일하게 되어야 함.
         if count in list(self.evaluation.keys()):
             print(len(self.evaluation[count]))
@@ -214,24 +237,18 @@ class ExMain(QWidget):
                 # self.evaluation[count][i][2] = 0
                 # self.evaluation[count][i][3] = 0
 
+                #표시할 object만 크기 변경 후 표시모드를 true로 변경
                 # 허용 오차 범위 투명도 사각형 출력
-                collect_obj = pg.QtGui.QGraphicsRectItem(self.tolerance_x, self.tolerance_y, self.tolerance_x_size, self.tolerance_y_size)  # obj 크기는 1m로 고정시킴
-                collect_obj.setBrush(QColor(18, 241, 246))
-                collect_obj.setOpacity(0.2)
-                self.view.addItem(collect_obj)
-                self.collect_objs.append(collect_obj)
+                self.collect_objs[i].setRect(self.tolerance_x, self.tolerance_y, self.tolerance_x_size, self.tolerance_y_size)
+                self.collect_objs[i].setVisible(True)
 
                 # 허용 오차 범위 테두리 출력
-                tolerance_border = pg.QtGui.QGraphicsRectItem(self.tolerance_x, self.tolerance_y, self.tolerance_x_size, self.tolerance_y_size)  # obj 크기는 1m로 고정시킴
-                tolerance_border.setPen(pg.mkPen(QColor(18, 241, 246)))
-                self.view.addItem(tolerance_border)
-                self.tolerance_borders.append(tolerance_border)
+                self.tolerance_borders[i].setRect(self.tolerance_x, self.tolerance_y, self.tolerance_x_size, self.tolerance_y_size)
+                self.tolerance_borders[i].setVisible(True)
 
                 # 정답 테두리 출력
-                collect_border = pg.QtGui.QGraphicsRectItem(self.evaluation[count][i][0], self.evaluation[count][i][1], self.evaluation[count][i][2], self.evaluation[count][i][3])  # obj 크기는 1m로 고정시킴
-                collect_border.setPen(pg.mkPen(QColor(255, 255, 0)))
-                self.view.addItem(collect_border)
-                self.collect_borders.append(collect_border)
+                self.collect_borders[i].setRect(self.evaluation[count][i][0], self.evaluation[count][i][1], self.evaluation[count][i][2], self.evaluation[count][i][3])
+                self.collect_borders[i].setVisible(True)
 
 
     def btn_event(self):
