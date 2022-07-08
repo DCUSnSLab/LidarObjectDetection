@@ -133,7 +133,7 @@ class ExMain(QWidget):
             self.collect_borders.append(collect_border)
 
         #load bagfile
-        test_bagfile = '/home/soobin/development/dataset/UrbanRoad/2022-02-10-19-54-31.bag'
+        test_bagfile = '/home/hyewon/development/dataset/UrbanRoad/2022-02-10-19-54-31.bag'
         self.bag_file = rosbag.Bag(test_bagfile)
 
         self.slider = None
