@@ -42,29 +42,29 @@ class ExMain(QWidget):
         self.ALGO_FLAG = 2  # 1 : kdtree. 2 : dbscan
         self.clusterLabel = list()
 
-        self.evaluation = {60: [[-15.10, 3.83, -4.7, 1.7], [-7.29, 3.33, -4.7, 1.7], [-0.44, 2.89, -4.7, 1.7], [2.44, 1.89, 4.7, 1.7], [11.23, 1.38, 4.7, 1.7], [-7.5, -0.65, -9, 3], [8.16, -2.15, 4.7, 1.7], [16.65, -2.66, 4.7, 1.7], [18.64, 0.04, 4.7, 1.7]],
-                           120: [[-19.50, 3.47, -4.7, 1.7], [-12.09, -0.71, -9, 3], [-3.10, 2.22, -4.7, 1.7], [3.56, 8.16, 4.7, 1.7], [14.53, -2.45, 4.7, 1.7], [24.40, 0.44, 4.7, 1.7], [-11.34, 3.26, -4.7, 1.7]],
-                           180: [[-22.15, -0.39, -9, 3], [-14.39, 3.45, -4.7, 1.7], [3.03, 3.47, 4.7, 1.7], [26.91, -9.94, 4.7, 1.7], [23.40, -2.17, 4.7, 1.7], [-28.38, 3.36, -4.7, 1.7], [16.53, 7.38, 4.7, 1.7]],
-                           240: [[-5.08, 5.73, -4.7, 1.7], [14.08, 3.04, 4.7, 1.7], [22.73, -3.85, 4.7, 1.7], [-26.33, 4.70, -4.7, 1.7]],
+        self.evaluation = {60: [[-19.80, 3.83, 4.7, 1.7], [-11.99, 3.33, 4.7, 1.7], [-5.14, 2.89, 4.7, 1.7], [2.44, 1.89, 4.7, 1.7], [11.23, 1.38, 4.7, 1.7], [-16.5, -0.65, 9, 3], [8.16, -2.15, 4.7, 1.7], [16.65, -2.66, 4.7, 1.7], [18.64, 0.04, 4.7, 1.7]],
+                           120: [[-24.20, 3.47, 4.7, 1.7], [-21.09, -0.71, 9, 3], [-3.10, 2.22, 4.7, 1.7], [3.56, 8.16, 4.7, 1.7], [14.53, -2.45, 4.7, 1.7], [24.40, 0.44, 4.7, 1.7], [-16.04, 3.26, 4.7, 1.7]],
+                           180: [[-31.15, -0.39, 9, 3], [-19.09, 3.45, 4.7, 1.7], [3.03, 3.47, 4.7, 1.7], [26.91, -9.94, 4.7, 1.7], [23.40, -2.17, 4.7, 1.7], [-33.08, 3.36, 4.7, 1.7], [16.53, 7.38, 4.7, 1.7]],
+                           240: [[-9.78, 5.73, 4.7, 1.7], [14.08, 3.04, 4.7, 1.7], [22.73, -3.85, 4.7, 1.7], [-31.03, 7.8, 4.7, 1.7]],
                            300: [[26.08, -6.58, 4.7, 1.7]],
-                           360: [[-28.30, 8.01, -4.7, 1.7], [24.36, -7.29, 4.7, 1.7]],
+                           360: [[-33.00, 8.01, 4.7, 1.7], [24.36, -7.29, 4.7, 1.7]],
                            420: [[8.68, -5.05, 4.7, 1.7]],
-                           480: [[-7.41, -4.57, -4.7, 1.7]],
-                           540: [[-9.67, 5.20, -4.7, 1.7], [-23.19, -1.76, -4.7, 1.7], [23.94, 3.90, 4.7, 1.7], [-13.34, 9.32, -9, 3]],
-                           600: [[-21.80, -2.54, -4.7, 1.7], [-22.40, 10.36, -4.7, 1.7], [11.96, 5.51, 4.7, 1.7]],
-                           660: [[-17.30, -3.18, -4.7, 1.7]],
-                           720: [[-24.07, -4.12, -4.7, 1.7], [16.39, -6.21, 4.7, 1.7]],
+                           480: [[-12.11, -4.57, 4.7, 1.7]],
+                           540: [[-14.37, 5.20, 4.7, 1.7], [-27.89, -1.76, 4.7, 1.7], [23.94, 3.90, 4.7, 1.7], [-22.34, 9.32, 9, 3]],
+                           600: [[-26.50, -2.54, 4.7, 1.7], [-27.10, 10.36, 4.7, 1.7], [11.96, 4.74, 4.7, 1.7]],
+                           660: [[-22.00, -3.18, 4.7, 1.7]],
+                           720: [[-28.77, -4.12, 4.7, 1.7], [16.39, -6.21, 4.7, 1.7]],
                            780: [[-0.22, -4.57, 4.7, 1.7]],
-                           840: [[20.69, -5.07, 4.7, 1.7], [-9.76, -3.56, -4.7, 1.7]],
-                           900: [[-3.8, 4.8, -4.7, 1.7], [-0.28, -4.50, 4.7, 1.7], [-26.05, -2.97, -4.7, 1.7]],
-                           960: [[-20.88, -1.92, -4.7, 1.7]],
+                           840: [[20.69, -5.07, 4.7, 1.7], [-14.46, -3.56, 4.7, 1.7]],
+                           900: [[-8.50, 4.80, 4.7, 1.7], [-0.28, -4.50, 4.7, 1.7], [-30.75, -2.97, 4.7, 1.7]],
+                           960: [[-25.58, -1.92, 4.7, 1.7]],
                            1020: [],
                            1080: [],
                            1140: [],
-                           1200: [[-23.48, 1.60, -4.7, 1.7], [-15.28, 4.19, -4.7, 1.7]]
+                           1200: [[-28.18, 1.60, 4.7, 1.7], [-19.98, 4.19, 4.7, 1.7]]
                            }
 
-        self.frame = 180
+        self.frame = 120
 
         self.getslider = None
         secs_list = []
@@ -113,17 +113,11 @@ class ExMain(QWidget):
         # 여기서 frame 부분을 현재 frame count와 동일하게 되어야 함.
         if self.frame in list(self.evaluation.keys()):
             for i in range(len(self.evaluation[self.frame])):
-                # 허용 오차 범위 y값 설
+                # 허용 오차 범위 x, y값 설정
                 self.tolerance_y = self.evaluation[self.frame][i][1] - 0.5
                 self.tolerance_y_size = self.evaluation[self.frame][i][3] + 1.0 # 허용오차 범위를 0.5로 하기 위해서는 좌표값의 이동때문에 size 값을 1로 지정해야 함
-
-                # 허용 오차 범위 x값 설정 -> 조건 추가해야 할 것 같은 느낌인데...
-                if self.evaluation[self.frame][i][0] < 0:
-                    self.tolerance_x = self.evaluation[self.frame][i][0] + 0.5
-                    self.tolerance_x_size = self.evaluation[self.frame][i][2] - 1.0
-                else:
-                    self.tolerance_x = self.evaluation[self.frame][i][0] - 0.5
-                    self.tolerance_x_size = self.evaluation[self.frame][i][2] + 1.0
+                self.tolerance_x = self.evaluation[self.frame][i][0] - 0.5
+                self.tolerance_x_size = self.evaluation[self.frame][i][2] + 1.0
 
                 # 허용 오차 범위 투명도 사각형 출력
                 collect_obj = pg.QtGui.QGraphicsRectItem(self.tolerance_x, self.tolerance_y, self.tolerance_x_size, self.tolerance_y_size) #obj 크기는 1m로 고정시킴
@@ -321,18 +315,10 @@ class ExMain(QWidget):
 
             index = np.asarray(np.where(self.clusterLabel == i))
             # print(i, 'cluster 개수 : ', len(index[0]))
-            if np.max(points[index, 0]) < 0.0:
-                # 오른쪽 아래
-                x = np.max(points[index, 0])
-                y = np.min(points[index, 1])
-                x_size = -(np.max(points[index, 0]) - np.min(points[index, 0]))  # x_max 3
-                y_size = np.max(points[index, 1]) - np.min(points[index, 1])  # y_max 1.3
-            else:
-                # 왼쪽 아래
-                x = np.min(points[index, 0])
-                y = np.min(points[index, 1])
-                x_size = np.max(points[index, 0]) - np.min(points[index, 0])  # x_max 3
-                y_size = np.max(points[index, 1]) - np.min(points[index, 1])  # y_max 1.3
+            x = np.min(points[index, 0])
+            y = np.min(points[index, 1])
+            x_size = np.max(points[index, 0]) - np.min(points[index, 0])  # x_max 3
+            y_size = np.max(points[index, 1]) - np.min(points[index, 1])  # y_max 1.3
 
             # car size bounding box
             carLength = 9 # 경차 : 3.6 소형 : 4.7 화물 차량 : 9
@@ -346,46 +332,31 @@ class ExMain(QWidget):
 
             # 정답지 좌표 출력
             # print("%d : [%.2f, %.2f, %.2f, %.2f]" % (i, tempobjPos[0], tempobjPos[1], tempobjSize[0], tempobjSize[1]))
-        print()
 
         # print(box_cnt)
         # print('car_cnt : ', len(self.evaluation[frame]))
-        l = list()
-        n = 0
+        l = [0 for i in range(50)]
+        collect_car = 0
 
         if self.frame in list(self.evaluation.keys()):
-            print(self.frame)
             for i in box_cnt:
-                collect_car = 0
-                left_x = self.objsPos[i][0] - (self.objsSize[i][0] / 2)  # left down x
-                left_y = self.objsPos[i][1] - (self.objsSize[i][1] / 2)  # left down y
+                left_x = self.objsPos[i][0]  # left down x
+                left_y = self.objsPos[i][1]  # left down y
                 right_x = left_x + self.objsSize[i][0]  # right up x
                 right_y = left_y + self.objsSize[i][1]  # right up y
+                # print(i, ':', left_x, left_y, right_x, right_y)
                 for j in range(len(self.evaluation[self.frame])):
-                    left_x_collect = self.evaluation[self.frame][j][0] - (self.evaluation[self.frame][j][2] / 2)
-                    left_y_collect = self.evaluation[self.frame][j][1] - (self.evaluation[self.frame][j][3] / 2)
-                    right_x_collect = left_x_collect + self.evaluation[self.frame][j][2]
-                    right_y_collect = left_y_collect + self.evaluation[self.frame][j][3]
-                    if (left_x <= left_x_collect and right_x <= right_x_collect) and (left_y <= left_y_collect and right_y <= right_y_collect):
-                        collect_car = collect_car + 1
-                        l.append(collect_car)
-
-                    # print('collect')
-                    # print(left_x, left_y, right_x, right_y)
-                    # print(left_x_collect, left_y_collect, right_x_collect, right_y_collect)
-            #         print(j, collect_car)
-
-            # print(l)
-            # print()
-            # 수정 필요
-            # print('car_cnt : ', len(self.evaluation[self.frame]))
-            # if(len(l) > 0):
-            #     print('collect_cnt : ', max(l))
-            #     print(f'result : {max(l)/len(self.evaluation[self.frame]):.2f}\n')
-            # else:
-            #     print('collect_cnt : 0')
-            #     print('result : 0.00\n')
-
+                    left_x_collect = self.evaluation[self.frame][j][0] - 0.5
+                    left_y_collect = self.evaluation[self.frame][j][1] - 0.5
+                    right_x_collect = left_x_collect + self.evaluation[self.frame][j][2] + 1.0
+                    right_y_collect = left_y_collect + self.evaluation[self.frame][j][3] + 1.0
+                    if(left_x > left_x_collect and right_x < right_x_collect and left_y > left_y_collect and right_y < right_y_collect):
+                        l[j] = l[j] + 1
+                    # print('i : ', i, ', j : ', j, '->', left_x, left_x_collect, right_x, right_x_collect, left_y, left_y_collect, right_y, right_y_collect)
+            for i in l:
+                if(i > 0):
+                    collect_car = collect_car + 1
+            print('collect_car : ', collect_car, '개\n정확도 : ', collect_car/len(self.evaluation[self.frame]))
 
         # 그래프의 좌표 출력을 위해 pos 데이터에 최종 points 저장
         self.pos = points

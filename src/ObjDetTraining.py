@@ -138,17 +138,6 @@ class ExMain(QWidget):
         idx = np.random.randint(len(points), size=10000)
         points = points[idx, :]
 
-        # <voxel grid downsampling>
-        # vox = points.make_voxel_grid_filter()
-        # vox.set_leaf_size(0.01, 0.01, 0.01)
-        # points = vox.filter()
-        # print(points)
-
-        # open3d.visualization.draw_geometries([points])
-        # points.scale(1/points.get_max_bound()-points.get_min_bound())
-        # voxel_grid = open3d.geometry.VoxelGrid.create_from_point_cloud(points, voxel_size=0.1)
-        # open3d.visualization.draw_geometries([voxel_grid])
-
     def kdtree(self, points):
         kdt = KDTree(points, leaf_size=40)
         # cluster_list = [[0 for j in range(0, )] for i in range(3)]
@@ -164,35 +153,9 @@ class ExMain(QWidget):
                 cluster_list[j] = cluster
         self.clusterLabel = np.asarray(cluster_list)
 
-
-            # print('cluster_point : ', random_point, ', ', ind)
-
-        # print('length : ', len(points), ', random point : ', random_point, ', random point list : ', points[random_point])
-        # dist, ind = kdt.query(points[:], k=10)
-        # print(points[:])
-
-        #print('tree', kdt.get_tree_stats())
-        # print('dist : ', dist, '\nind : ', ind)
-
-        # print('count : ', kdt.query_radius(points[:1], r=0.3, count_only=True))
-        # print(kdt.query_radius(points[:1], r=0.3))
-
     def dbscan(self, points): # dbscan eps = 1.5, min_size = 60
-        # scaler = StandardScaler()
-        # scaler.fit(points)
-        # X_scaled = scaler.transform(points)
-        #
-        # dbscan = DBSCAN().fit_predict(X_scaled)
-        # print(dbscan)
-        # self.clusterLabel = dbscan.labels_
-
         dbscan = DBSCAN(eps=1, min_samples=20, algorithm='ball_tree').fit(points)
         self.clusterLabel = dbscan.labels_
-
-        # print('DBSCAN(', len(self.clusterLabel), ') : ', self.clusterLabel)
-        # print(self.clusterLabel)
-        # for i in self.clusterLabel:
-        #     print(i, end='')
 
     #여기부터 object detection 알고리즘 적용해 보면 됨
     def doYourAlgorithm(self, points):
