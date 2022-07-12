@@ -29,7 +29,7 @@ class ExMain(QWidget):
         secs_list = []
         nsecs_list = []
         self.btn_Flag = None
-        self.D_flag = False
+        self.StopSlider_flag = True
 
 
         self.start_secs_time = 0
@@ -38,6 +38,7 @@ class ExMain(QWidget):
         self.t = 0
         self.list1 = [0, 0]
         self.flag = False
+        self.test = False
 
 
         hbox = QGridLayout()
@@ -74,10 +75,10 @@ class ExMain(QWidget):
         #생성된 object의 position값을 입력하여 그래프에 출력할 수 있도록 함
         numofobjs = 50
         for i in range(numofobjs):
-            obj = pg.QtGui.QGraphicsRectItem(-0.5, -0.5, 0.5, 0.5) #obj 크기는 1m로 고정시킴
-            obj.setPen(pg.mkPen('w'))
-            self.view.addItem(obj)
-            self.objs.append(obj)
+            # obj = pg.QtGui.QGraphicsRectItem(-0.5, -0.5, 0.5, 0.5) #obj 크기는 1m로 고정시킴
+            # obj.setPen(pg.mkPen('w'))
+            # self.view.addItem(obj)
+            # self.objs.append(obj)
 
             pos = [0, 0, 0] #x, y, z
             size = [0, 0, 0] #w, h, depth
@@ -89,28 +90,46 @@ class ExMain(QWidget):
         test_bagfile = '/home/soju/snslab_ROS/test2.bag'
         self.bag_file = rosbag.Bag(test_bagfile)
 
+
+
         self.slider = None
         self.slider = QSlider(Qt.Horizontal, self)
 
         # self.slider.sizePolicy().horizontalPolicy(QSizePolicy.Maximum)
         self.slider.sliderMoved.connect(self.change)
+        self.slider.sliderPressed.connect(self.sliderPressed)
+        self.slider.sliderReleased.connect(self.sliderReleased)
         # self.slider.valueChanged(self.count_base())
         # self.count_base.valueChanged(self.slider.setValue)
 
+        self.Table = None
+        self.Table = QTableWidget(self)
+        table_column = ["정지", "입력", "클릭", "프레임"]
+        self.Table.setFixedSize(500,60)
+        self.Table.setColumnCount(4)
+        self.Table.setRowCount(1)
+        self.Table.setHorizontalHeaderLabels(table_column)
+
         self.btn = QPushButton("||")
+        self.MoveBtn = QPushButton("Move")
         self.Decreasebtn = QPushButton("->")
         self.btn.setCheckable(True)
         self.label = QLabel('label',self)
-        # self.text = QLabel(self.)
-        # self.text.setText(self,"aa")
-        # self.btn.setCheckable(True)
-        # self.btn.clicked.connect(self.getbagfile)
         self.btn.clicked.connect(self.btn_event)
+        # self.MoveBtn.clicked.connect(self.input_time())
         self.Decreasebtn.clicked.connect(self.DecreaseButton)
-        hbox.addWidget(self.slider)
-        hbox.addWidget(self.btn)
-        hbox.addWidget(self.Decreasebtn)
-        hbox.addWidget(self.label)
+
+        self.line = QLineEdit(self)
+
+        self.Table.setCellWidget(0,0,self.btn)
+        self.Table.setCellWidget(0, 1, self.line)
+        self.Table.setCellWidget(0, 2, self.MoveBtn)
+        self.Table.setCellWidget(0,3,self.label)
+
+        hbox.addWidget(self.slider,1,0)
+        hbox.addWidget(self.Table,2,0)
+        # hbox.addWidget(self.Decreasebtn)
+        # hbox.addWidget(self.label,1,3)
 
 
         # sliderMin = self.secs_dict
@@ -133,8 +152,13 @@ class ExMain(QWidget):
         self.mytimer = QTimer()
         self.mytimer.start(10)  # 1초마다 차트 갱신 위함...
         self.mytimer.timeout.connect(self.get_data)
-
         self.show()
+
+    def input_time(self):
+        timeVel = self.line.text()
+        self.list1.insert(1, int(timeVel))
+        del (self.list1[2])
+
 
     def change(self, val):
         self.start_secs_time = self.secs_dict[val]
@@ -142,10 +166,21 @@ class ExMain(QWidget):
 
         self.list1.insert(1, val)
         global count
+        self.slider.setValue(val)
+        print(val)
         count = val
 
         del (self.list1[2])
         self.flag = True
+
+    def sliderPressed(self):
+        if self.StopSlider_flag is True:
+            self.btn_Flag = False
+
+    def sliderReleased(self):
+        if self.StopSlider_flag is True:
+            self.btn_Flag = True
+
 
     def count_base(self):
         global count
@@ -153,7 +188,7 @@ class ExMain(QWidget):
             count += 1
             a= str(count)
             self.label.setText(a)
-            self.slider.setValue(count)
+            self.slider.setSliderPosition(count)
         else:
             print("err")
 
@@ -162,8 +197,14 @@ class ExMain(QWidget):
         print(self.btn_Flag)
         if self.btn_Flag == True:
             self.btn.setText("▶")
+            self.start_secs_time = self.secs_dict[count]
+            self.start_nsecs_time = self.nsecs_dict[count]
+            self.StopSlider_flag = True
         else:
             self.btn.setText("||")
+            self.start_secs_time = self.secs_dict[count]
+            self.start_nsecs_time = self.nsecs_dict[count]
+            self.StopSlider_flag = False
 
     def DecreaseButton(self,n):
         global count
@@ -175,11 +216,6 @@ class ExMain(QWidget):
         self.list1.insert(1, n)
         count = n
         del (self.list1[2])
-        if self.D_flag == False:
-            self.btn_Flag= False
-            self.D_flag = True
-
-
 
     @pyqtSlot()
     def get_data(self):
@@ -209,7 +245,7 @@ class ExMain(QWidget):
 
                 if self.btn_Flag is True:# 일시정지
                     break
-
+                    # self.getbagfile
 
                 #ros_numpy 데이터 타입 문제로 class를 강제로 변경
                 msg.__class__ = sensor_msgs.msg._PointCloud2.PointCloud2
@@ -233,10 +269,6 @@ class ExMain(QWidget):
                 if self.flag == True:#슬라이더
                     self.flag = False
                     break
-
-                if self.D_flag == True:
-                    if self.btn_Flag == True:
-                        break
 
     def downSampling(self, points):
         # <random downsampling>
