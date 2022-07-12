@@ -154,7 +154,7 @@ class ExMain(QWidget):
         self.clusterLabel = np.asarray(cluster_list)
 
     def dbscan(self, points): # dbscan eps = 1.5, min_size = 60
-        dbscan = DBSCAN(eps=1, min_samples=20, algorithm='ball_tree').fit(points)
+        dbscan = DBSCAN(eps=0.5, min_samples=10, algorithm='ball_tree').fit(points)
         self.clusterLabel = dbscan.labels_
 
     #여기부터 object detection 알고리즘 적용해 보면 됨

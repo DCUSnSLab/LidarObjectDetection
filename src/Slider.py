@@ -17,6 +17,8 @@ from sklearn.cluster import DBSCAN
 import pcl
 from sklearn.linear_model import RANSACRegressor
 
+import csv
+
 read_topic = '/velodyne_points'  # 메시지 타입
 count = 1
 class TestWidget(pg.GraphicsLayoutWidget):
@@ -64,7 +66,7 @@ class ExMain(QWidget):
                            1200: [[-28.18, 1.60, 4.7, 1.7], [-19.98, 4.19, 4.7, 1.7]]
                            }
 
-        self.frame = 120
+        self.frame = 60
 
         self.getslider = None
         secs_list = []
@@ -106,8 +108,8 @@ class ExMain(QWidget):
         self.objsSize = list()
 
         # 정답 및 허용 오차 범위 출력용
-        self.collect_objs = list()
-        self.collect_borders = list()
+        self.correct_objs = list()
+        self.correct_borders = list()
         self.tolerance_borders = list()
 
         # 여기서 frame 부분을 현재 frame count와 동일하게 되어야 함.
@@ -120,11 +122,11 @@ class ExMain(QWidget):
                 self.tolerance_x_size = self.evaluation[self.frame][i][2] + 1.0
 
                 # 허용 오차 범위 투명도 사각형 출력
-                collect_obj = pg.QtGui.QGraphicsRectItem(self.tolerance_x, self.tolerance_y, self.tolerance_x_size, self.tolerance_y_size) #obj 크기는 1m로 고정시킴
-                collect_obj.setBrush(QColor(18, 241, 246))
-                collect_obj.setOpacity(0.2)
-                self.view.addItem(collect_obj)
-                self.collect_objs.append(collect_obj)
+                correct_obj = pg.QtGui.QGraphicsRectItem(self.tolerance_x, self.tolerance_y, self.tolerance_x_size, self.tolerance_y_size) #obj 크기는 1m로 고정시킴
+                correct_obj.setBrush(QColor(18, 241, 246))
+                correct_obj.setOpacity(0.2)
+                self.view.addItem(correct_obj)
+                self.correct_objs.append(correct_obj)
 
                 # 허용 오차 범위 테두리 출력
                 tolerance_border = pg.QtGui.QGraphicsRectItem(self.tolerance_x, self.tolerance_y, self.tolerance_x_size, self.tolerance_y_size)  # obj 크기는 1m로 고정시킴
@@ -133,10 +135,10 @@ class ExMain(QWidget):
                 self.tolerance_borders.append(tolerance_border)
 
                 # 정답 테두리 출력
-                collect_border = pg.QtGui.QGraphicsRectItem(self.evaluation[self.frame][i][0], self.evaluation[self.frame][i][1], self.evaluation[self.frame][i][2], self.evaluation[self.frame][i][3])  # obj 크기는 1m로 고정시킴
-                collect_border.setPen(pg.mkPen(QColor(255, 255, 0)))
-                self.view.addItem(collect_border)
-                self.collect_borders.append(collect_border)
+                correct_border = pg.QtGui.QGraphicsRectItem(self.evaluation[self.frame][i][0], self.evaluation[self.frame][i][1], self.evaluation[self.frame][i][2], self.evaluation[self.frame][i][3])  # obj 크기는 1m로 고정시킴
+                correct_border.setPen(pg.mkPen(QColor(255, 255, 0)))
+                self.view.addItem(correct_border)
+                self.correct_borders.append(correct_border)
 
         # #출력용 object를 미리 생성해둠
         # #생성된 object의 position값을 입력하여 그래프에 출력할 수 있도록 함
@@ -280,7 +282,7 @@ class ExMain(QWidget):
 
 
     def dbscan(self, points): # dbscan eps = 1.5, min_size = 60
-        dbscan = DBSCAN(eps=1, min_samples=20, algorithm='ball_tree').fit(points)
+        dbscan = DBSCAN(eps=0.5, min_samples=10, algorithm='ball_tree').fit(points)
         self.clusterLabel = dbscan.labels_
 
     def accuracy(self):
@@ -335,10 +337,10 @@ class ExMain(QWidget):
 
         # print(box_cnt)
         # print('car_cnt : ', len(self.evaluation[frame]))
-        l = [0 for i in range(50)]
-        collect_car = 0
 
         if self.frame in list(self.evaluation.keys()):
+            l = [0 for i in range(50)]
+            correct_car = 0
             for i in box_cnt:
                 left_x = self.objsPos[i][0]  # left down x
                 left_y = self.objsPos[i][1]  # left down y
@@ -346,17 +348,17 @@ class ExMain(QWidget):
                 right_y = left_y + self.objsSize[i][1]  # right up y
                 # print(i, ':', left_x, left_y, right_x, right_y)
                 for j in range(len(self.evaluation[self.frame])):
-                    left_x_collect = self.evaluation[self.frame][j][0] - 0.5
-                    left_y_collect = self.evaluation[self.frame][j][1] - 0.5
-                    right_x_collect = left_x_collect + self.evaluation[self.frame][j][2] + 1.0
-                    right_y_collect = left_y_collect + self.evaluation[self.frame][j][3] + 1.0
-                    if(left_x > left_x_collect and right_x < right_x_collect and left_y > left_y_collect and right_y < right_y_collect):
+                    left_x_correct = self.evaluation[self.frame][j][0] - 0.5
+                    left_y_correct = self.evaluation[self.frame][j][1] - 0.5
+                    right_x_correct = left_x_correct + self.evaluation[self.frame][j][2] + 1.0
+                    right_y_correct = left_y_correct + self.evaluation[self.frame][j][3] + 1.0
+                    if(left_x > left_x_correct and right_x < right_x_correct and left_y > left_y_correct and right_y < right_y_correct):
                         l[j] = l[j] + 1
-                    # print('i : ', i, ', j : ', j, '->', left_x, left_x_collect, right_x, right_x_collect, left_y, left_y_collect, right_y, right_y_collect)
+                    # print('i : ', i, ', j : ', j, '->', left_x, left_x_correct, right_x, right_x_correct, left_y, left_y_correct, right_y, right_y_correct)
             for i in l:
                 if(i > 0):
-                    collect_car = collect_car + 1
-            print('collect_car : ', collect_car, '개\n정확도 : ', collect_car/len(self.evaluation[self.frame]))
+                    correct_car = correct_car + 1
+            print('correct_car : %d개\n정확도 : %.2f' % (correct_car, correct_car/len(self.evaluation[self.frame])))
 
         # 그래프의 좌표 출력을 위해 pos 데이터에 최종 points 저장
         self.pos = points

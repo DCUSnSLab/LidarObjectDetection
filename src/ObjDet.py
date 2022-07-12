@@ -49,6 +49,7 @@ class ExMain(QWidget):
                            }
 
         self.frame = 180
+        self.correct = list()
 
         self.getslider = None
         secs_list = []
@@ -95,13 +96,13 @@ class ExMain(QWidget):
         self.objsSize = list()
 
         # 정답 및 허용 오차 범위 출력용
-        self.collect_objs = list()
-        self.collect_borders = list()
+        self.correct_objs = list()
+        self.correct_borders = list()
         self.tolerance_borders = list()
 
         # #출력용 object를 미리 생성해둠
         # #생성된 object의 position값을 입력하여 그래프에 출력할 수 있도록 함
-        numofobjs = 50
+        numofobjs = 150
         for i in range(numofobjs):
             obj = pg.QtGui.QGraphicsRectItem(-0.5, -0.5, 0.5, 0.5) #obj 크기는 1m로 고정시킴
             obj.setPen(pg.mkPen('w'))
@@ -113,23 +114,23 @@ class ExMain(QWidget):
             self.objsPos.append(pos)
             self.objsSize.append(size)
 
-        #pyqtgraph에 Collect Object 생성
+        #pyqtgraph에 Correct Object 생성
         for i in range(numofobjs):
-            collect_obj = pg.QtGui.QGraphicsRectItem(-0.5, -0.5, 0.5, 0.5) #obj 크기는 1m로 고정시킴
-            collect_obj.setBrush(QColor(18, 241, 246))
-            collect_obj.setOpacity(0.2)
-            self.view.addItem(collect_obj)
-            self.collect_objs.append(collect_obj)
+            correct_obj = pg.QtGui.QGraphicsRectItem(-0.5, -0.5, 0.5, 0.5) #obj 크기는 1m로 고정시킴
+            correct_obj.setBrush(QColor(18, 241, 246))
+            correct_obj.setOpacity(0.2)
+            self.view.addItem(correct_obj)
+            self.correct_objs.append(correct_obj)
 
             tolerance_border = pg.QtGui.QGraphicsRectItem(-0.5, -0.5, 0.5, 0.5)  # obj 크기는 1m로 고정시킴
             tolerance_border.setPen(pg.mkPen(QColor(18, 241, 246)))
             self.view.addItem(tolerance_border)
             self.tolerance_borders.append(tolerance_border)
 
-            collect_border = pg.QtGui.QGraphicsRectItem(-0.5, -0.5, 0.5, 0.5)  # obj 크기는 1m로 고정시킴
-            collect_border.setPen(pg.mkPen(QColor(255, 255, 0)))
-            self.view.addItem(collect_border)
-            self.collect_borders.append(collect_border)
+            correct_border = pg.QtGui.QGraphicsRectItem(-0.5, -0.5, 0.5, 0.5)  # obj 크기는 1m로 고정시킴
+            correct_border.setPen(pg.mkPen(QColor(255, 255, 0)))
+            self.view.addItem(correct_border)
+            self.correct_borders.append(correct_border)
 
         #load bagfile
         test_bagfile = '/home/hyewon/development/dataset/UrbanRoad/2022-02-10-19-54-31.bag'
@@ -201,16 +202,16 @@ class ExMain(QWidget):
             a= str(count)
             self.label.setText(a)
             self.slider.setValue(count)
-            self.creat_collect_box()
+            self.creat_correct_box()
         else:
             print("err")
 
-    def creat_collect_box(self):
-        #gui에 생성된 모든 collect object들의 표시상태를 false로 변경함. (초기화)
-        for i in range(len(self.collect_objs)):
-            self.collect_objs[i].setVisible(False)
+    def creat_correct_box(self):
+        #gui에 생성된 모든 correct object들의 표시상태를 false로 변경함. (초기화)
+        for i in range(len(self.correct_objs)):
+            self.correct_objs[i].setVisible(False)
             self.tolerance_borders[i].setVisible(False)
-            self.collect_borders[i].setVisible(False)
+            self.correct_borders[i].setVisible(False)
 
         # 여기서 frame 부분을 현재 frame count와 동일하게 되어야 함.
         if count in list(self.evaluation.keys()):
@@ -223,16 +224,16 @@ class ExMain(QWidget):
 
                 #표시할 object만 크기 변경 후 표시모드를 true로 변경
                 # 허용 오차 범위 투명도 사각형 출력
-                self.collect_objs[i].setRect(self.tolerance_x, self.tolerance_y, self.tolerance_x_size, self.tolerance_y_size)
-                self.collect_objs[i].setVisible(True)
+                self.correct_objs[i].setRect(self.tolerance_x, self.tolerance_y, self.tolerance_x_size, self.tolerance_y_size)
+                self.correct_objs[i].setVisible(True)
 
                 # 허용 오차 범위 테두리 출력
                 self.tolerance_borders[i].setRect(self.tolerance_x, self.tolerance_y, self.tolerance_x_size, self.tolerance_y_size)
                 self.tolerance_borders[i].setVisible(True)
 
                 # 정답 테두리 출력
-                self.collect_borders[i].setRect(self.evaluation[count][i][0], self.evaluation[count][i][1], self.evaluation[count][i][2], self.evaluation[count][i][3])
-                self.collect_borders[i].setVisible(True)
+                self.correct_borders[i].setRect(self.evaluation[count][i][0], self.evaluation[count][i][1], self.evaluation[count][i][2], self.evaluation[count][i][3])
+                self.correct_borders[i].setVisible(True)
 
 
     def btn_event(self):
@@ -336,7 +337,7 @@ class ExMain(QWidget):
 
 
     def dbscan(self, points):  # dbscan eps = 1.5, min_size = 60
-        dbscan = DBSCAN(eps=1, min_samples=20, algorithm='ball_tree').fit(points)
+        dbscan = DBSCAN(eps=0.5, min_samples=10, algorithm='ball_tree').fit(points)
         self.clusterLabel = dbscan.labels_
 
     def doYourAlgorithm(self, points):
@@ -387,30 +388,33 @@ class ExMain(QWidget):
 
         # print(box_cnt)
         # print('car_cnt : ', len(self.evaluation[frame]))
-        l = list()
-        n = 0
-
-        if self.frame in list(self.evaluation.keys()):
+        if count in list(self.evaluation.keys()):
+            l = [0 for i in range(150)]
+            correct_car = 0
             for i in box_cnt:
-                collect_car = 0
                 left_x = self.objsPos[i][0]  # left down x
                 left_y = self.objsPos[i][1]  # left down y
                 right_x = left_x + self.objsSize[i][0]  # right up x
                 right_y = left_y + self.objsSize[i][1]  # right up y
                 # print(i, ':', left_x, left_y, right_x, right_y)
-                for j in range(len(self.evaluation[self.frame])):
-                    left_x_collect = self.evaluation[self.frame][j][0] - 0.5
-                    left_y_collect = self.evaluation[self.frame][j][1] - 0.5
-                    right_x_collect = left_x_collect + self.evaluation[self.frame][j][2] + 1.0
-                    right_y_collect = left_y_collect + self.evaluation[self.frame][j][3] + 1.0
-                    if(left_x > left_x_collect and right_x < right_x_collect and left_y > left_y_collect and right_y < right_y_collect):
+                for j in range(len(self.evaluation[count])):
+                    left_x_correct = self.evaluation[count][j][0] - 0.5
+                    left_y_correct = self.evaluation[count][j][1] - 0.5
+                    right_x_correct = left_x_correct + self.evaluation[count][j][2] + 1.0
+                    right_y_correct = left_y_correct + self.evaluation[count][j][3] + 1.0
+                    if(left_x > left_x_correct and right_x < right_x_correct and left_y > left_y_correct and right_y < right_y_correct):
                         l[j] = l[j] + 1
-                    # print('i : ', i, ', j : ', j, '->', left_x, left_x_collect, right_x, right_x_collect, left_y, left_y_collect, right_y, right_y_collect)
+                    # print('i : ', i, ', j : ', j, '->', left_x, left_x_correct, right_x, right_x_correct, left_y, left_y_correct, right_y, right_y_correct)
             for i in l:
                 if(i > 0):
-                    collect_car = collect_car + 1
-            print('collect_car : ', collect_car, '개\n정확도 : ', collect_car/len(self.evaluation[self.frame]))
-
+                    correct_car = correct_car + 1
+            if len(self.evaluation[count]) == 0:
+                self.correct.append('-')
+                print('pass')
+            else:
+                self.correct.append(correct_car/len(self.evaluation[count]))
+                print('correct_car : %d개\n정확도 : %.2f' % (correct_car, correct_car/len(self.evaluation[count])))
+        print(self.correct)
         # obj detection
         # 그래프의 좌표 출력을 위해 pos 데이터에 최종 points 저장
         self.pos = points
