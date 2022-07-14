@@ -17,6 +17,8 @@ from sklearn.cluster import DBSCAN
 import pcl
 from sklearn.linear_model import RANSACRegressor
 
+import csv
+
 read_topic = '/velodyne_points'  # 메시지 타입
 count = 1
 class ExMain(QWidget):
@@ -235,7 +237,6 @@ class ExMain(QWidget):
                 self.correct_borders[i].setRect(self.evaluation[count][i][0], self.evaluation[count][i][1], self.evaluation[count][i][2], self.evaluation[count][i][3])
                 self.correct_borders[i].setVisible(True)
 
-
     def btn_event(self):
         self.btn_Flag = self.btn.isChecked()
         # print(self.btn_Flag)
@@ -343,7 +344,7 @@ class ExMain(QWidget):
     def doYourAlgorithm(self, points):
         box_cnt = list()
         # Filter_ROI
-        roi = {"x": [-30, 30], "y": [-10, 20], "z": [-1.5, 5.0]}  # z값 수정
+        roi = {"x": [-30, 30], "y": [-20, 20], "z": [-1.5, 5.0]}  # z값 수정
 
         x_range = np.logical_and(points[:, 0] >= roi["x"][0], points[:, 0] <= roi["x"][1])
         y_range = np.logical_and(points[:, 1] >= roi["y"][0], points[:, 1] <= roi["y"][1])
@@ -386,11 +387,15 @@ class ExMain(QWidget):
             # 정답지 좌표 출력
             # print("%d : [%.2f, %.2f, %.2f, %.2f]" % (i, tempobjPos[0], tempobjPos[1], tempobjSize[0], tempobjSize[1]))
 
-        # print(box_cnt)
-        # print('car_cnt : ', len(self.evaluation[frame]))
+        # 1번 실행 시 .csv 파일명 바꾸기
+        f = open('test.csv', 'a', encoding="utf-8-sig")
+        wr = csv.writer(f)
+        if count == 1:
+            wr.writerow(['N frame', '차량개수', '정답차량', '미검지/오검지', '실행시간', '정확도'])
         if count in list(self.evaluation.keys()):
             l = [0 for i in range(150)]
             correct_car = 0
+            car_cnt = len(self.evaluation[count])
             for i in box_cnt:
                 left_x = self.objsPos[i][0]  # left down x
                 left_y = self.objsPos[i][1]  # left down y
@@ -404,17 +409,24 @@ class ExMain(QWidget):
                     right_y_correct = left_y_correct + self.evaluation[count][j][3] + 1.0
                     if(left_x > left_x_correct and right_x < right_x_correct and left_y > left_y_correct and right_y < right_y_correct):
                         l[j] = l[j] + 1
-                    # print('i : ', i, ', j : ', j, '->', left_x, left_x_correct, right_x, right_x_correct, left_y, left_y_correct, right_y, right_y_correct)
+            # 정답 차량 카운팅
             for i in l:
                 if(i > 0):
                     correct_car = correct_car + 1
+            # 도로에 챠량이 없을 경우 예외 처리
             if len(self.evaluation[count]) == 0:
-                self.correct.append('-')
-                print('pass')
+                self.correct.append('')
+                print('pass\n')
+                data = [count, car_cnt, correct_car, '미/오', 0.00, '']
             else:
                 self.correct.append(correct_car/len(self.evaluation[count]))
-                print('correct_car : %d개\n정확도 : %.2f' % (correct_car, correct_car/len(self.evaluation[count])))
-        print(self.correct)
+                print('car_cnt : %d\ncorrect_car : %d개\n정확도 : %.2f\n' % (car_cnt, correct_car, correct_car/len(self.evaluation[count])))
+                data = [count, car_cnt, correct_car, '미/오', 0.00, correct_car / len(self.evaluation[count])]
+            wr.writerow(data)
+        f.close()
+
+        # print(self.correct)
+
         # obj detection
         # 그래프의 좌표 출력을 위해 pos 데이터에 최종 points 저장
         self.pos = points

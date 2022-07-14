@@ -66,8 +66,7 @@ class ExMain(QWidget):
                            1200: [[-28.18, 1.60, 4.7, 1.7], [-19.98, 4.19, 4.7, 1.7]]
                            }
 
-        self.frame = 60
-
+        self.frame = 360
         self.getslider = None
         secs_list = []
         nsecs_list = []
@@ -142,7 +141,7 @@ class ExMain(QWidget):
 
         # #출력용 object를 미리 생성해둠
         # #생성된 object의 position값을 입력하여 그래프에 출력할 수 있도록 함
-        numofobjs = 50
+        numofobjs = 150
         for i in range(numofobjs):
             obj = pg.QtGui.QGraphicsRectItem(-0.5, -0.5, 0.5, 0.5) #obj 크기는 1m로 고정시킴
             obj.setPen(pg.mkPen('w'))
@@ -292,7 +291,7 @@ class ExMain(QWidget):
     def doYourAlgorithm(self, points):
         box_cnt = list()
         # Filter_ROI
-        roi = {"x":[-30, 30], "y":[-10, 20], "z":[-1.5, 5.0]} # z값 수정
+        roi = {"x":[-30, 30], "y":[-20, 20], "z":[-1.5, 5.0]} # z값 수정
 
         x_range = np.logical_and(points[:, 0] >= roi["x"][0], points[:, 0] <= roi["x"][1])
         y_range = np.logical_and(points[:, 1] >= roi["y"][0], points[:, 1] <= roi["y"][1])
@@ -339,7 +338,7 @@ class ExMain(QWidget):
         # print('car_cnt : ', len(self.evaluation[frame]))
 
         if self.frame in list(self.evaluation.keys()):
-            l = [0 for i in range(50)]
+            l = [0 for i in range(150)]
             correct_car = 0
             for i in box_cnt:
                 left_x = self.objsPos[i][0]  # left down x
