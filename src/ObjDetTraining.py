@@ -1,7 +1,9 @@
 import pyqtgraph as pg
 import ros_numpy
 import sensor_msgs
+import vispy.scene
 
+from vispy.scene import visuals, TurntableCamera
 from PyQt5.QtWidgets import *
 from PyQt5.QtCore import pyqtSlot, pyqtSignal, QObject, Qt, QThread, QTimer
 import rosbag
@@ -30,6 +32,7 @@ class ExMain(QWidget):
         nsecs_list = []
         self.btn_Flag = None
         self.Stop_flag = False
+        self.Flag_3D = None
 
 
         self.start_secs_time = 0
@@ -40,22 +43,30 @@ class ExMain(QWidget):
         self.test = False
 
 
-        hbox = QGridLayout()
+        self.hbox = QGridLayout()
+
+        #3D
+        self.canvas3D = vispy.scene.SceneCanvas(keys='interactive', bgcolor='#000d1a')
+        self.view3D = self.canvas3D.central_widget.add_view()
+        self.view3D.camera = 'arcball'
+        self.view3D.camera = TurntableCamera(fov=30.0, elevation=90.0, azimuth=-90., distance=100, translate_speed=50.0)
+        grid = visuals.GridLines(parent=self.view3D.scene, scale=(5, 5))
+
+        self.scatter = visuals.Markers(edge_color=None, size=2)
+        self.view3D.add(self.scatter)
+
+        #2D
         self.canvas = pg.GraphicsLayoutWidget()
-        hbox.addWidget(self.canvas)
-        self.setLayout(hbox)
-
-        self.view = self.canvas.addViewBox()
-        self.view.setAspectLocked(True)
-        self.view.disableAutoRange()
-        self.view.scaleBy(s=(20, 20))
+        self.view2D = self.canvas.addViewBox()
+        self.view2D.setAspectLocked(True)
+        self.view2D.disableAutoRange()
+        self.view2D.scaleBy(s=(20, 20))
         grid = pg.GridItem()
-        self.view.addItem(grid)
-        self.setWindowTitle("realtime")
-
-        #point cloud 출력용
+        self.view2D.addItem(grid)
         self.spt = pg.ScatterPlotItem(pen=pg.mkPen(width=1, color='r'), symbol='o', size=2)
-        self.view.addItem(self.spt)
+        self.view2D.addItem(self.spt)
+
+        self.setWindowTitle("realtime")
 
         # global position to display graph
         self.pos = None
@@ -73,7 +84,7 @@ class ExMain(QWidget):
         for i in range(numofobjs):
             obj = pg.QtGui.QGraphicsRectItem(-0.5, -0.5, 0.5, 0.5) #obj 크기는 1m로 고정시킴
             obj.setPen(pg.mkPen('w'))
-            self.view.addItem(obj)
+            self.view2D.addItem(obj)
             self.objs.append(obj)
 
             pos = [0, 0, 0] #x, y, z
@@ -86,38 +97,34 @@ class ExMain(QWidget):
         test_bagfile = '/home/soju/snslab_ROS/test2.bag'
         self.bag_file = rosbag.Bag(test_bagfile)
 
-
-
         self.slider = None
         self.slider = QSlider(Qt.Horizontal, self)
 
-        # self.slider.sizePolicy().horizontalPolicy(QSizePolicy.Maximum)
         self.slider.sliderMoved.connect(self.change)
         self.slider.sliderPressed.connect(self.sliderPressed)
         self.slider.sliderReleased.connect(self.sliderReleased)
-        # self.slider.valueChanged(self.count_base())
-        # self.count_base.valueChanged(self.slider.setValue)
 
         self.Table = None
         self.Table = QTableWidget(self)
-        table_column = ["정지", "입력", "클릭", "프레임"]
-        self.Table.setFixedSize(500,60)
-        self.Table.setColumnCount(4)
+        table_column = ["정지", "입력", "클릭", "프레임","화면전환"]
+        self.Table.setFixedSize(600,60)
+        self.Table.setColumnCount(5)
         self.Table.setRowCount(1)
         self.Table.setHorizontalHeaderLabels(table_column)
 
         self.btn = QPushButton("||")
         self.MoveBtn = QPushButton("Move")
-        self.Decreasebtn = QPushButton("->")
+
+        self.btn3D = QPushButton("3D")
         self.btn.setCheckable(True)
-        # self.MoveBtn.setCheckable(True)
+        self.btn3D.setCheckable(True)
+
         self.label = QLabel('label',self)
         self.btn.clicked.connect(self.btn_event)
+        self.btn3D.clicked.connect(self.btn_3D)
         self.MoveBtn.clicked.connect(self.input_time)
         self.MoveBtn.pressed.connect(self.input_btnPressed)
         self.MoveBtn.released.connect(self.input_btnReleased)
-
-        self.Decreasebtn.clicked.connect(self.DecreaseButton)
 
         self.line = QLineEdit(self)
 
@@ -125,11 +132,12 @@ class ExMain(QWidget):
         self.Table.setCellWidget(0,1, self.line)
         self.Table.setCellWidget(0,2, self.MoveBtn)
         self.Table.setCellWidget(0,3,self.label)
+        self.Table.setCellWidget(0,4,self.btn3D)
 
-        hbox.addWidget(self.slider,1,0)
-        hbox.addWidget(self.Table,2,0)
 
-        # sliderMin = self.secs_dict
+        self.hbox.addWidget(self.slider,1,0)
+        self.hbox.addWidget(self.Table,2,0)
+
         for topic, msg, t in self.bag_file.read_messages(read_topic):
             secs_list.append(msg.header.stamp.secs)
             nsecs_list.append(msg.header.stamp.nsecs)
@@ -140,6 +148,20 @@ class ExMain(QWidget):
         self.slider.setRange(0, self.sliderMax)
         self.slider.setSingleStep(1)
 
+        self.Viewer2D = QWidget()
+        self.Viewer3D = QWidget()
+
+        self.Viewer2D_UI()
+        self.Viewer3D_UI()
+
+        self.Viewer = QStackedWidget(self)
+        self.Viewer.addWidget(self.Viewer2D)
+        self.Viewer.addWidget(self.Viewer3D)
+
+        self.hbox.addWidget(self.Viewer,0,0)
+
+
+        self.setLayout(self.hbox)
 
         #ros thread
         self.bagthreadFlag = True
@@ -149,6 +171,7 @@ class ExMain(QWidget):
         self.mytimer = QTimer()
         self.mytimer.start(10)  # 1초마다 차트 갱신 위함...
         self.mytimer.timeout.connect(self.get_data)
+
         self.show()
 
     def input_time(self):
@@ -169,7 +192,6 @@ class ExMain(QWidget):
             self.btn_Flag = True
 
     def change(self, val):
-
         self.start_secs_time = self.secs_dict[val]
         self.start_nsecs_time = self.nsecs_dict[val]
         global count
@@ -199,7 +221,6 @@ class ExMain(QWidget):
 
     def btn_event(self):
         self.btn_Flag = self.btn.isChecked()
-        print(self.btn_Flag)
         if self.btn_Flag == True:
             self.btn.setText("▶")
             self.start_secs_time = self.secs_dict[count]
@@ -211,19 +232,34 @@ class ExMain(QWidget):
             self.start_nsecs_time = self.nsecs_dict[count]
             self.Stop_flag = False
 
-    def DecreaseButton(self,n):
-        global count
-        n = count+200
-        self.start_secs_time = self.secs_dict[n]
-        self.start_nsecs_time = self.nsecs_dict[n]
-        print(n)
-        print(count)
-        count = n
+    def btn_3D(self):
+        self.Flag_3D = self.btn3D.isChecked()
+        if self.Flag_3D is True:
+            self.btn3D.setText("2D")
+            self.Viewer.setCurrentIndex(1)
+        else:
+            self.btn3D.setText("3D")
+            self.Viewer.setCurrentIndex(0)
+
+    #화면 전환 함수
+    def Viewer2D_UI(self):
+        layout2D = QVBoxLayout()
+        layout2D.addWidget(self.canvas)
+        self.Viewer2D.setLayout(layout2D)
+
+    def Viewer3D_UI(self):
+        layout3D = QVBoxLayout()
+        layout3D.addWidget(self.canvas3D.native)
+        self.Viewer3D.setLayout(layout3D)
+
 
     @pyqtSlot()
     def get_data(self):
         if self.pos is not None:
-            self.spt.setData(pos=self.pos)  # line chart 그리기
+            if self.Flag_3D is True:
+                self.scatter.set_data(pos=self.pos[:, :3], edge_color='white', size=1)
+            else:
+                self.spt.setData(pos=self.pos)  # line chart 그리기
 
         #object 출력
         #50개 object중 position 값이 0,0이 아닌것만 출력
@@ -271,6 +307,7 @@ class ExMain(QWidget):
                 if self.flag == True:#슬라이더
                     self.flag = False
                     break
+
 
     def downSampling(self, points):
         # <random downsampling>
