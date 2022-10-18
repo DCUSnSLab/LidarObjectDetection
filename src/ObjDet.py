@@ -1,4 +1,7 @@
 import pyqtgraph as pg
+import vispy
+from vispy.scene import visuals, TurntableCamera
+
 import ros_numpy
 import sensor_msgs
 
@@ -57,6 +60,7 @@ class ExMain(QWidget):
         secs_list = []
         nsecs_list = []
         self.btn_Flag = None
+        self.Stop_flag = False
         self.D_flag = False
 
 
@@ -67,12 +71,20 @@ class ExMain(QWidget):
         self.list1 = [0, 0]
         self.flag = False
 
-        hbox = QGridLayout()
-        self.canvas = pg.GraphicsLayoutWidget()
-        hbox.addWidget(self.canvas)
-        self.setLayout(hbox)
+
         #self.setGeometry(300, 100, 1000, 1000)  # x, y, width, height
 
+        # 3D
+        self.canvas3D = vispy.scene.SceneCanvas(keys='interactive', bgcolor='#000d1a')
+        self.view3D = self.canvas3D.central_widget.add_view()
+        self.view3D.camera = 'arcball'
+        self.view3D.camera = TurntableCamera(fov=30.0, elevation=90.0, azimuth=-90., distance=100, translate_speed=50.0)
+        grid = visuals.GridLines(parent=self.view3D.scene, scale=(5, 5))
+
+        self.scatter = visuals.Markers(edge_color=None, size=2)
+        self.view3D.add(self.scatter)
+
+        self.canvas = pg.GraphicsLayoutWidget()
         self.view = self.canvas.addViewBox()
         self.view.setAspectLocked(True)
         self.view.disableAutoRange()
@@ -82,6 +94,10 @@ class ExMain(QWidget):
         #self.geometry().setWidth(1000)
         #self.geometry().setHeight(1000)
         self.setWindowTitle("realtime")
+
+        self.hbox = QGridLayout()
+        self.hbox.addWidget(self.canvas)
+        self.setLayout(self.hbox)
 
         #point cloud 출력용
         self.spt = pg.ScatterPlotItem(pen=pg.mkPen(width=1, color='r'), symbol='o', size=2)
@@ -135,7 +151,7 @@ class ExMain(QWidget):
             self.correct_borders.append(correct_border)
 
         #load bagfile
-        test_bagfile = '/home/hyewon/development/dataset/UrbanRoad/2022-02-10-19-54-31.bag'
+        test_bagfile = '/home/ros/rosbag/2022-02-10-19-54-31.bag'
         self.bag_file = rosbag.Bag(test_bagfile)
 
         self.slider = None
@@ -143,27 +159,55 @@ class ExMain(QWidget):
 
         # self.slider.sizePolicy().horizontalPolicy(QSizePolicy.Maximum)
         self.slider.sliderMoved.connect(self.change)
+        self.slider.sliderPressed.connect(self.sliderPressed)
+        self.slider.sliderReleased.connect(self.sliderReleased)
         # self.slider.valueChanged(self.count_base())
         # self.count_base.valueChanged(self.slider.setValue)
 
+        self.Table = None
+        self.Table = QTableWidget(self)
+        table_column = ["정지", "입력", "클릭", "프레임", "화면전환"]
+        self.Table.setFixedSize(600, 80)
+        self.Table.setColumnCount(5)
+        self.Table.setRowCount(1)
+        self.Table.setHorizontalHeaderLabels(table_column)
+
         self.btn = QPushButton("||")
         self.Decreasebtn = QPushButton("->")
+        self.MoveBtn = QPushButton("Move")
+        self.btn3D = QPushButton("3D")
         self.btn.setCheckable(True)
-        self.label = QLabel('label',self)
+        self.btn3D.setCheckable(True)
+
+        self.label = QLabel('label', self)
+        self.btn.clicked.connect(self.btn_event)
+        self.btn3D.clicked.connect(self.btn_3D)
+        self.MoveBtn.clicked.connect(self.input_time)
+        self.MoveBtn.pressed.connect(self.input_btnPressed)
+        self.MoveBtn.released.connect(self.input_btnReleased)
         # self.text = QLabel(self.)
         # self.text.setText(self,"aa")
         # self.btn.setCheckable(True)
         # self.btn.clicked.connect(self.getbagfile)
+
+        self.line = QLineEdit(self)
+
+        self.Table.setCellWidget(0,0,self.btn)
+        self.Table.setCellWidget(0,1, self.line)
+        self.Table.setCellWidget(0,2, self.MoveBtn)
+        self.Table.setCellWidget(0,3,self.label)
+        self.Table.setCellWidget(0,4,self.btn3D)
+
         self.btn.clicked.connect(self.btn_event)
         self.Decreasebtn.clicked.connect(self.DecreaseButton)
-        hbox.addWidget(self.slider)
+        self.hbox.addWidget(self.slider)
+        self.hbox.addWidget(self.Table, 2, 0)
         self.btn.setMinimumHeight(35)
-        hbox.addWidget(self.btn)
-        hbox.addWidget(self.Decreasebtn)
-        hbox.addWidget(self.label)
+        self.hbox.addWidget(self.btn)
+        self.hbox.addWidget(self.Decreasebtn)
+        self.hbox.addWidget(self.label)
 
 
-        # sliderMin = self.secs_dict
         for topic, msg, t in self.bag_file.read_messages(read_topic):
             secs_list.append(msg.header.stamp.secs)
             nsecs_list.append(msg.header.stamp.nsecs)
@@ -174,6 +218,17 @@ class ExMain(QWidget):
         self.slider.setRange(0, self.sliderMax)
         self.slider.setSingleStep(1)
 
+        self.Viewer2D = QWidget()
+        self.Viewer3D = QWidget()
+
+        self.Viewer2D_UI()
+        self.Viewer3D_UI()
+
+        self.Viewer = QStackedWidget(self)
+        self.Viewer.addWidget(self.Viewer2D)
+        self.Viewer.addWidget(self.Viewer3D)
+
+        self.hbox.addWidget(self.Viewer,0,0)
 
         #ros thread
         self.bagthreadFlag = True
@@ -189,13 +244,19 @@ class ExMain(QWidget):
     def change(self, val):
         self.start_secs_time = self.secs_dict[val]
         self.start_nsecs_time = self.nsecs_dict[val]
-
-        self.list1.insert(1, val)
         global count
+        self.slider.setValue(val)
+        print(val)
         count = val
-
-        del (self.list1[2])
         self.flag = True
+
+    def sliderPressed(self):
+        if self.Stop_flag is True:
+            self.btn_Flag = False
+
+    def sliderReleased(self):
+        if self.Stop_flag is True:
+            self.btn_Flag = True
 
     def count_base(self):
         global count
@@ -336,6 +397,41 @@ class ExMain(QWidget):
                 cluster_list[j] = cluster
         self.clusterLabel = np.asarray(cluster_list)
 
+    def btn_3D(self):
+        self.Flag_3D = self.btn3D.isChecked()
+        if self.Flag_3D is True:
+            self.btn3D.setText("2D")
+            self.Viewer.setCurrentIndex(1)
+        else:
+            self.btn3D.setText("3D")
+            self.Viewer.setCurrentIndex(0)
+
+    def input_time(self):
+        s=self.line.text()
+        n= int(s)-1
+        global count
+        self.start_secs_time = self.secs_dict[n]
+        self.start_nsecs_time = self.nsecs_dict[n]
+        count = n
+        self.flag = True
+
+    def input_btnPressed(self):
+        if self.Stop_flag is True:
+            self.btn_Flag = False
+
+    def input_btnReleased(self):
+        if self.Stop_flag is True:
+            self.btn_Flag = True
+
+    def Viewer2D_UI(self):
+        layout2D = QVBoxLayout()
+        layout2D.addWidget(self.canvas)
+        self.Viewer2D.setLayout(layout2D)
+
+    def Viewer3D_UI(self):
+        layout3D = QVBoxLayout()
+        layout3D.addWidget(self.canvas3D.native)
+        self.Viewer3D.setLayout(layout3D)
 
     def dbscan(self, points):  # dbscan eps = 1.5, min_size = 60
         dbscan = DBSCAN(eps=0.5, min_samples=10, algorithm='ball_tree').fit(points)
@@ -388,7 +484,7 @@ class ExMain(QWidget):
             # print("%d : [%.2f, %.2f, %.2f, %.2f]" % (i, tempobjPos[0], tempobjPos[1], tempobjSize[0], tempobjSize[1]))
 
         # 1번 실행 시 .csv 파일명 바꾸기
-        f = open('test.csv', 'a', encoding="utf-8-sig")
+        f = open('test_2.csv', 'a', encoding="utf-8-sig")
         wr = csv.writer(f)
         if count == 1:
             wr.writerow(['N frame', '차량개수', '정답차량', '미검지/오검지', '실행시간', '정확도'])
