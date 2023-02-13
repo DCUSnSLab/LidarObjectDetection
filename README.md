@@ -73,3 +73,19 @@ def getbagfile(self):
         time.sleep(0.1) #빨리 볼라면 주석처리 하면됨
         break #여기에 break를 입력하면 ros 데이터를 한번만 처리하고 thread 종료됨
 ```
+
+### On Windows
+
+아래 파일 다운로드
+
+- [ros_numpy](https://github.com/eric-wieser/ros_numpy)
+- [ros_noetic_lib](https://github.com/DCUSnSLab/ROS_Python_lib)
+
+Pycharm의 Settings - Project - Project Structure에서 위 파일 추가
+
+이후 아래 라이브러리 설치 및 실행 버전 조정
+
+- pyyaml
+- rospkg
+- pycryptodomex
+- numpy==1.23.5

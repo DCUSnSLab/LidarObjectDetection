@@ -60,7 +60,8 @@ class ExMain(QWidget):
 
 
         #load bagfile
-        test_bagfile = '/home/soobin/development/dataset/UrbanRoad/2022-02-10-19-54-31.bag'
+        # test_bagfile = '/home/soobin/development/dataset/UrbanRoad/2022-02-10-19-54-31.bag'
+        test_bagfile = 'C:/Users/박준홍/Downloads/2022-02-10-19-54-31.bag'
         self.bag_file = rosbag.Bag(test_bagfile)
 
 
