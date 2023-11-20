@@ -1,7 +1,6 @@
 import pyqtgraph as pg
 import ros_numpy
 import sensor_msgs
-
 from PyQt5.QtWidgets import *
 from PyQt5.QtCore import pyqtSlot, pyqtSignal, QObject, Qt, QThread, QTimer
 import rosbag
@@ -10,9 +9,14 @@ import time, random
 from threading import Thread
 import numpy as np
 
+from sklearn.cluster import KMeans
+import pandas as pd
+
 class ExMain(QWidget):
     def __init__(self):
         super().__init__()
+
+        self.clusterLabel = list()
 
         hbox = QGridLayout()
         self.canvas = pg.GraphicsLayoutWidget()
@@ -21,11 +25,13 @@ class ExMain(QWidget):
         #self.setGeometry(300, 100, 1000, 1000)  # x, y, width, height
 
         self.view = self.canvas.addViewBox()
-        self.view.setAspectLocked(True)
-        self.view.disableAutoRange()
+        self.view.setAspectLocked(True) #뷰 가로, 세로 비율 유지
+        self.view.disableAutoRange() #자동 범위 비활성화
         self.view.scaleBy(s=(20, 20))
         grid = pg.GridItem()
         self.view.addItem(grid)
+
+
         #self.geometry().setWidth(1000)
         #self.geometry().setHeight(1000)
         self.setWindowTitle("realtime")
@@ -55,25 +61,23 @@ class ExMain(QWidget):
 
             pos = [0, 0, 0] #x, y, z
             size = [0, 0, 0] #w, h, depth
-            self.objsPos.append(pos)
+            self.objsPos.append(pos) #append(pos): pos값을 array 맨 끝에 추가
             self.objsSize.append(size)
 
 
         #load bagfile
-        # test_bagfile = '/home/soobin/development/dataset/UrbanRoad/2022-02-10-19-54-31.bag'
-        test_bagfile = 'C:/Users/박준홍/Downloads/2022-02-10-19-54-31.bag'
+        test_bagfile = '/home/yeon/다운로드/2022-02-10-19-54-31.bag'
         self.bag_file = rosbag.Bag(test_bagfile)
-
 
         #ros thread
         self.bagthreadFlag = True
         self.bagthread = Thread(target=self.getbagfile)
         self.bagthread.start()
+
         #Graph Timer 시작
         self.mytimer = QTimer()
         self.mytimer.start(10)  # 1초마다 차트 갱신 위함...
         self.mytimer.timeout.connect(self.get_data)
-
         self.show()
 
     @pyqtSlot()
@@ -91,8 +95,6 @@ class ExMain(QWidget):
             else:
                 obj.setVisible(True)
                 obj.setRect((objpos[0])-(objsize[0]/2), (objpos[1])-(objsize[1]/2), objsize[0], objsize[1])
-        #time.sleep(1)
-        #print('test')
 
     #ros 파일에서 velodyne_points 메시지만 불러오는 부분
     def getbagfile(self):
@@ -113,32 +115,68 @@ class ExMain(QWidget):
             points[:, 0] = pc['x']
             points[:, 1] = pc['y']
             points[:, 2] = pc['z']
-            points[:, 3] = pc['intensity']
+            # points[:, 3] = pc['intensity']
 
             self.resetObjPos()
             self.doYourAlgorithm(points)
 
-            #print(points)
-            time.sleep(0.1) #빨리 볼라면 주석처리 하면됨
+            time.sleep(100) #빨리 볼라면 주석처리 하면됨
 
     #여기부터 object detection 알고리즘 적용해 보면 됨
     def doYourAlgorithm(self, points):
-        #downsampling
+        #filter_roi
+        #설정하지 않으면 도로 밖 구간에도 클러스터가 생성됨. 필요한 공간에만 생성될 수 있도록 roi 설정
+        #roi: region of interest. 관심 영역 처리
+        roi = {"x": [-30, 30], "y": [-10, 20], "z": [-1.5, 5.0]}  # z값 수정
 
-        #filter
+        x_range = np.logical_and(points[:, 0] >= roi["x"][0], points[:, 0] <= roi["x"][1])
+        y_range = np.logical_and(points[:, 1] >= roi["y"][0], points[:, 1] <= roi["y"][1])
+        z_range = np.logical_and(points[:, 2] >= roi["z"][0], points[:, 2] <= roi["z"][1])
+        #np.logical_and: 모든 조건을 충족할 경우 True, 아닐 경우 False
+        #roi영역안에 있는 값들 저장
 
-        #obj detection
+        pass_through_filter = np.where(np.logical_and(x_range, np.logical_and(y_range, z_range)) == True)[0]
+        #조건 두개만 가능하기 때문에 안에 logical_and를 한 번 더 사용
+        points = points[pass_through_filter, :]
+
+        # downsampling
+        idx = np.random.randint(len(points), size=10000)  # points길이부터 size이하 범위의 정수 난수 생성
+        points = points[idx, :]  # [:]: z처음부터 끝까지
+
+        #clustering
+        kmeans = KMeans(n_clusters= 8, random_state= 42).fit(points)
+        self.clusterLabel = kmeans.labels_
+
+        for i in range(1, max(self.clusterLabel)+1):
+            tempobjPos = self.objsPos[i]
+            tempobjSize = self.objsSize[i]
+
+            index = np.asarray(np.where(self.clusterLabel == i))
+            print(i, 'cluster 개수 : ', len(index[0]))
+
+            cx = (np.max(points[index, 0]) + np.min(points[index, 0])) / 2
+            cy = (np.max(points[index, 1]) + np.min(points[index, 1])) / 2
+            x_size = np.max(points[index, 0]) - np.min(points[index, 0])
+            y_size = np.max(points[index, 1]) - np.min(points[index, 1])
+
+            tempobjPos[0] = cx
+            tempobjPos[1] = cy
+            tempobjSize[0] = x_size
+            tempobjSize[1] = y_size
+
+            # carLength = 4.7  # 경차 : 3.6 소형 : 4.7
+            # carHeight = 2  # 경차 : 2 소형 : 2
+            #
+            # if (x_size <= carLength) and (y_size <= carHeight):
+            #     tempobjPos[0] = cx
+            #     tempobjPos[1] = cy
+            #     tempobjSize[0] = x_size
+            #     tempobjSize[1] = y_size
+            # else:
+            #     pass
 
         # 그래프의 좌표 출력을 위해 pos 데이터에 최종 points 저장
         self.pos = points
-
-        #테스트용 obj 생성, 임시로 0번째 obj에 x,y 좌표와 사이즈 입력
-        tempobjPos = self.objsPos[0]
-        tempobjSize = self.objsSize[0]
-        tempobjPos[0] = 1
-        tempobjPos[1] = 3
-        tempobjSize[0] = 3
-        tempobjSize[1] = 1.3
 
     def resetObjPos(self):
         for i, pos in enumerate(self.objsPos):
