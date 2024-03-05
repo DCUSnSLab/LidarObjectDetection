@@ -74,18 +74,23 @@ def getbagfile(self):
         break #여기에 break를 입력하면 ros 데이터를 한번만 처리하고 thread 종료됨
 ```
 
-### On Windows
+### On Other OS(Windows, macOS)
 
 아래 파일 다운로드
 
 - [ros_numpy](https://github.com/eric-wieser/ros_numpy)
 - [ros_noetic_lib](https://github.com/DCUSnSLab/ROS_Python_lib)
 
-Pycharm의 Settings - Project - Project Structure에서 위 파일 추가
+#### Pycharm의 Settings - Project - Project Structure에서 위 파일들의 경로 추가
+- ros_numpy의 경우 src 경로 추가
+- ros_noetic_lib의 경우 dist-packages 경로 추가
 
 이후 아래 라이브러리 설치 및 실행 버전 조정
 
 - pyyaml
 - rospkg
+- gnupg
 - pycryptodomex
 - numpy==1.23.5
+
+macOS의 경우 virtual env 생성 시 global-site 옵션 활성화 후 진행
